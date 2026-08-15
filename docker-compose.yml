@@ -1,0 +1,160 @@
+# KODE Printer — deployment stack.
+#
+# Four services. The shape follows §B18: nothing is exposed except the reverse
+# proxy, TLS terminates in front of the application, and PostgreSQL is never
+# reachable from outside the compose network.
+#
+#   caddy    TLS termination and the only published HTTP port
+#   app      the API, the queue worker and the device watchers
+#   db       PostgreSQL
+#   samba    the scan share printers write into (§B18.2, inbound TCP 445)
+#
+# Start with:  docker compose up -d --build
+# Seed with:   docker compose exec app node dist/db/seed.js
+
+name: kode-printer
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kode_printer}
+      POSTGRES_USER: ${POSTGRES_USER:-kode}
+      # No default. A compose file that boots with a known password is exactly
+      # what the GAP-04 boot guard exists to refuse.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Never published. §B18.2 lists 5432 as localhost-only, and in compose the
+    # equivalent is "reachable on the internal network and nowhere else".
+    expose:
+      - '5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-kode} -d ${POSTGRES_DB:-kode_printer}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [internal]
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: '20m'
+        max-file: '5'
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      KODE_DEBUG: 'false'
+      DATABASE_URL: postgres://${POSTGRES_USER:-kode}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-kode_printer}
+      # Quoted: the `:?` message contains a colon-space, which YAML reads as the
+      # start of a new mapping key inside an unquoted scalar.
+      JWT_SECRET: '${JWT_SECRET:?generate with: openssl rand -base64 48}'
+      SECRET_KEY: '${SECRET_KEY:?generate with: openssl rand -base64 48}'
+      CORS_ORIGINS: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+      PUBLIC_URL: ${PUBLIC_URL}
+      # Caddy is the only thing in front of the app, so exactly one proxy hop.
+      # Getting this wrong makes every request look like it came from the proxy
+      # and one user's typo rate-limits the whole club.
+      TRUST_PROXY_HOPS: '1'
+      UPLOAD_DIR: /data/uploads
+      SCAN_DIR: /data/scans
+      TEMPLATE_DIR: /data/templates
+      TMP_DIR: /data/tmp
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_FROM: ${SMTP_FROM:-KODE Printer <printer@kodesportsclub.local>}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      LOG_FORMAT: json
+    volumes:
+      - uploads:/data/uploads
+      - scans:/data/scans
+      - templates:/data/templates
+      # The scan share and the app must see the same directory: the printer
+      # writes over SMB and the watcher reads from the filesystem.
+      - scans:/data/scans:rw
+    expose:
+      - '3000'
+    networks:
+      - internal
+      # The app must reach printers on the club LAN. `host` is not used, because
+      # that would also expose the app's own port; a macvlan or a route through
+      # the host is configured per site — see docs/RUNBOOK.md.
+      - printers
+    security_opt:
+      # bubblewrap needs to create user namespaces for the converter sandbox.
+      - seccomp:unconfined
+    cap_drop: [ALL]
+    cap_add:
+      # The only capabilities bwrap requires to build its jail.
+      - SYS_ADMIN
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - '443:443'
+      - '80:80'
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+      # An internal CA certificate goes here; see the Caddyfile.
+      - ./docker/certs:/certs:ro
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?set PUBLIC_HOSTNAME in .env}
+    networks: [internal]
+    logging: *logging
+
+  # §B18.2 flags inbound SMB from printers as "the exception worth scrutiny".
+  # It is required by scan-to-folder and it is the rule most likely to be
+  # refused across a VLAN boundary — where it is refused, that site needs a
+  # collector with the share local to it (§B11).
+  samba:
+    image: dperson/samba:latest
+    restart: unless-stopped
+    ports:
+      - '445:445'
+    environment:
+      TZ: ${TZ:-Africa/Cairo}
+    command: >
+      -s "scans;/data/scans;yes;no;no;${SCAN_SHARE_USER:-scanner}"
+      -u "${SCAN_SHARE_USER:-scanner};${SCAN_SHARE_PASSWORD:?set SCAN_SHARE_PASSWORD in .env}"
+      -p
+    volumes:
+      - scans:/data/scans
+    networks:
+      - internal
+      - printers
+    profiles:
+      # Not started by default. Bring it up with `--profile scanning` once at
+      # least one device is configured for Scan to Network Folder.
+      - scanning
+    logging: *logging
+
+volumes:
+  db-data:
+  uploads:
+  scans:
+  templates:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:
+    driver: bridge
+  printers:
+    driver: bridge

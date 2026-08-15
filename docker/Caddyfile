@@ -1,0 +1,64 @@
+# TLS termination and reverse proxy.
+#
+# §B18.3 (GAP-02, blocking): the application does not terminate TLS and MUST NOT
+# be exposed directly. Caddy does it here; on a Windows host IIS plays the same
+# role and the equivalent web.config is in docs/deploy/.
+
+{$PUBLIC_HOSTNAME} {
+	# The club's internal CA. Caddy's automatic HTTPS reaches Let's Encrypt,
+	# which an internal-only hostname cannot satisfy — so the certificate is
+	# supplied. Swap for `tls internal` to use Caddy's own local CA in a lab.
+	tls /certs/kode-printer.crt /certs/kode-printer.key
+
+	encode zstd gzip
+
+	# Security headers that belong at the edge. `helmet` sets the rest inside
+	# the app; HSTS is here because this is the only hop that speaks TLS.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+
+	# Server-sent events must not be buffered or the live stream delivers
+	# nothing until the connection closes — which is every proxy's default and
+	# the single most common reason SSE "does not work".
+	@stream path /api/stream*
+	handle @stream {
+		reverse_proxy app:3000 {
+			flush_interval -1
+			transport http {
+				read_timeout 24h
+			}
+		}
+	}
+
+	# Uploads can be 100 MB and an Office conversion can take a minute; the
+	# default 30-second timeouts would cut both off.
+	handle {
+		reverse_proxy app:3000 {
+			transport http {
+				read_timeout 300s
+				write_timeout 300s
+			}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+	}
+
+	request_body {
+		max_size 110MB
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
+
+# Plain HTTP redirects, so a bookmarked http:// link still works.
+http://{$PUBLIC_HOSTNAME} {
+	redir https://{$PUBLIC_HOSTNAME}{uri} permanent
+}

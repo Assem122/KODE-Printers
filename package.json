@@ -1,0 +1,48 @@
+{
+  "name": "kode-printers",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KODE Printer — central print, scan and audit for KODE Sports Club",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "concurrently -n api,web -c blue,yellow \"npm run dev -w @kode/server\" \"npm run dev -w @kode/web\"",
+    "dev:harness": "npm run dev -w @kode/fake-printer",
+    "typecheck": "tsc -b --pretty",
+    "lint": "eslint . --max-warnings 0",
+    "check:api": "node scripts/check-openapi.mjs",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,css,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,css,json,md,yml,yaml}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "migrate": "npm run migrate -w @kode/server",
+    "seed": "npm run seed -w @kode/server",
+    "audit:deps": "npm audit --audit-level=moderate",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.5",
+    "@vitest/coverage-v8": "^3.0.4",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.21.0",
+    "vitest": "^3.0.4"
+  }
+}

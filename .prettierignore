@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-types/
+coverage/
+apps/server/public/
+
+# Prettier's YAML parser chokes on Compose's `${VAR:?message}` shell defaults —
+# the colon inside the braces reads as a mapping key. Those defaults are the
+# whole point of the file: they are what makes `docker compose up` fail loudly
+# on a missing secret instead of booting with a blank password.
+docker-compose.yml
+
+# Generated.
+apps/web/public/*.png
+apps/web/public/favicon.svg

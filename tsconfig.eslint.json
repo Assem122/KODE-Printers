@@ -1,0 +1,35 @@
+{
+  // Type information for the files that sit outside the three app projects:
+  // tests, build config and scripts.
+  //
+  // A real project rather than `allowDefaultProject`, which caps out at eight
+  // files and degrades lint performance past that. These files still get
+  // type-aware rules — a floating promise in a test is as real as one in a
+  // route handler — they just are not part of any build output.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "allowJs": true,
+    "checkJs": false,
+    "types": ["node"],
+    "lib": ["ES2023", "DOM"],
+    "moduleResolution": "Bundler",
+    "module": "ESNext",
+    "paths": {
+      "@kode/shared": ["./packages/shared/src/index.ts"]
+    }
+  },
+  "include": [
+    "test/**/*.ts",
+    "scripts/**/*.mjs",
+    "vitest.config.ts",
+    "eslint.config.mjs",
+    "packages/shared/src/**/*.ts",
+    "apps/server/src/**/*.ts",
+    "tools/fake-printer/src/**/*.ts"
+  ]
+}

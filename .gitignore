@@ -1,0 +1,32 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.eslintcache
+.claude/
+docs/
+kodeBranding/
+
+# Secrets and local config — never committed. INV-08.
+.env
+.env.*
+!.env.example
+
+# Runtime data. The uploads directory holds member documents.
+/data/
+/apps/server/uploads/
+/apps/server/scans/
+/apps/server/logs/
+/apps/collector/spool/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test output
+playwright-report/
+test-results/

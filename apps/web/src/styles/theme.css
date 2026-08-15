@@ -1,0 +1,442 @@
+/**
+ * KODE Printer — design tokens.
+ *
+ * The design language is derived from the mark itself rather than bolted on
+ * beside it. Three properties of the KODE K do the work:
+ *
+ *   · **The diagonal.** The K's shear runs at roughly 26.5°. That angle recurs
+ *     as the accent on section headers, the cut on status chips, and the sweep
+ *     behind the hero panel. One angle used consistently is what makes a set of
+ *     screens feel drawn by the same hand.
+ *
+ *   · **The inline stroke.** The mark is a filled letterform with a hairline
+ *     channel cut inside it. Surfaces echo that with a 1px inner highlight over
+ *     a darker border — which is also what gives cards physical edges in dark
+ *     mode without resorting to heavy drop shadows.
+ *
+ *   · **Weight contrast.** The logo is very heavy next to very light space.
+ *     Display type is 800/900 with negative tracking; body text stays at 400.
+ *     Nothing sits in between, because that middle is where interfaces start
+ *     looking like a template.
+ *
+ * Dark is the primary theme. This is a tool people open on a phone while
+ * standing next to a printer, often in a plant room or a back office, and a
+ * white screen at arm's length in a dim corridor is genuinely unpleasant.
+ */
+
+@font-face {
+  font-family: 'Montserrat';
+  /* Variable font: one file covers 400 through 900 rather than five requests. */
+  src:
+    local('Montserrat'),
+    url('/fonts/montserrat-variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+:root {
+  /* ---------------------------------------------------------------- brand */
+  --kode-blue: #2150a0;
+  --kode-blue-bright: #3a6fca;
+  --kode-blue-deep: #173770;
+  --kode-gold: #fec015;
+  --kode-gold-deep: #e5a804;
+
+  --accent-orange: #f26202;
+  --accent-green: #059969;
+  --accent-electric: #0267f7;
+  --accent-violet: #5b3df5;
+  --accent-crimson: #d32f4b;
+
+  /* --------------------------------------------------------------- canvas */
+  /* Layered surfaces, not one flat background. Each step up is a real
+     elevation, so a modal over a card over the page reads without shadows. */
+  --surface-base: #0b0e16;
+  --surface-1: #11151f;
+  --surface-2: #161b26;
+  --surface-3: #1d2432;
+  --surface-4: #252d3d;
+  --surface-inset: #080b11;
+
+  /* The inline-stroke trick: a dark border with a lighter inner highlight. */
+  --border-subtle: rgb(255 255 255 / 6%);
+  --border-default: rgb(255 255 255 / 10%);
+  --border-strong: rgb(255 255 255 / 18%);
+  --inner-highlight: inset 0 1px 0 rgb(255 255 255 / 7%);
+
+  /* ------------------------------------------------------------------ ink */
+  --text-primary: #f2f5fa;
+  --text-secondary: #a8b3c7;
+  --text-tertiary: #6e7a92;
+  --text-inverse: #0b0e16;
+
+  /* --------------------------------------------------------------- status */
+  --status-online: #16b979;
+  --status-degraded: #fec015;
+  --status-offline: #f0526d;
+  --status-unknown: #6e7a92;
+
+  --severity-info: #4b86e8;
+  --severity-warning: #fec015;
+  --severity-critical: #f0526d;
+
+  /* ---------------------------------------------------------------- shape */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* The K's shear. Every diagonal in the interface uses this one value. */
+  --kode-angle: 26.5deg;
+  --kode-skew: -14deg;
+
+  /* --------------------------------------------------------------- rhythm */
+  /* A 4px base. Not 8: printer cards and job rows carry a lot of small
+     metadata, and 8px steps force either cramped or wasteful. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* ------------------------------------------------------------ typography */
+  --font-display: 'Montserrat', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Montserrat', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 3rem;
+
+  /* --------------------------------------------------------------- motion */
+  /* Spring-like easing. Linear motion reads as mechanical; this reads as
+     something with mass, which is what makes a panel feel like it arrived
+     rather than appeared. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 420ms;
+
+  /* ---------------------------------------------------------------- depth */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 4px 16px -4px rgb(0 0 0 / 50%);
+  --shadow-lg: 0 16px 48px -12px rgb(0 0 0 / 65%);
+  --shadow-glow: 0 0 0 1px rgb(33 80 160 / 45%), 0 8px 32px -8px rgb(33 80 160 / 55%);
+
+  /* --------------------------------------------------------------- layout */
+  --nav-rail: 76px;
+  --nav-expanded: 248px;
+  --bottom-nav: 68px;
+  --header-height: 64px;
+  --content-max: 1440px;
+}
+
+/**
+ * Light theme.
+ *
+ * Not an inversion — the blue has to stay a *brand* colour rather than becoming
+ * a link colour, so surfaces shift to cool near-whites and the blue keeps its
+ * saturation instead of being lightened into pastel.
+ */
+:root[data-theme='light'] {
+  --surface-base: #f2f5fa;
+  --surface-1: #ffffff;
+  --surface-2: #fbfcfe;
+  --surface-3: #f2f5fa;
+  --surface-4: #e8edf6;
+  --surface-inset: #e8edf6;
+
+  --border-subtle: rgb(14 26 51 / 7%);
+  --border-default: rgb(14 26 51 / 12%);
+  --border-strong: rgb(14 26 51 / 20%);
+  --inner-highlight: inset 0 1px 0 rgb(255 255 255 / 90%);
+
+  --text-primary: #161b26;
+  --text-secondary: #4c566d;
+  --text-tertiary: #68738c;
+  --text-inverse: #ffffff;
+
+  --status-online: #04824f;
+  --status-degraded: #a97b02;
+  --status-offline: #c62841;
+  --severity-info: #2150a0;
+  --severity-warning: #a97b02;
+  --severity-critical: #c62841;
+
+  --shadow-sm: 0 1px 2px rgb(14 26 51 / 8%);
+  --shadow-md: 0 4px 16px -4px rgb(14 26 51 / 12%);
+  --shadow-lg: 0 16px 48px -12px rgb(14 26 51 / 18%);
+  --shadow-glow: 0 0 0 1px rgb(33 80 160 / 25%), 0 8px 32px -8px rgb(33 80 160 / 25%);
+}
+
+/* -------------------------------------------------------------------- base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  /* The rail/bottom-nav offsets are read by scroll-margin so anchored headings
+     do not land underneath fixed chrome. */
+  scroll-padding-top: calc(var(--header-height) + var(--space-4));
+}
+
+body {
+  min-height: 100dvh;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--surface-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Numbers in tables must not shimmer as they update on the live dashboard. */
+  font-variant-numeric: tabular-nums;
+  overscroll-behavior-y: none;
+}
+
+/**
+ * The ambient field behind everything.
+ *
+ * Two very soft radial washes in brand blue and gold, fixed to the viewport.
+ * It is barely perceptible, and that is the point: a flat dark canvas across a
+ * 27-inch monitor reads as dead, while a visible gradient reads as decoration.
+ * This sits between the two.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgb(33 80 160 / 14%), transparent 60%),
+    radial-gradient(45rem 32rem at 100% 8%, rgb(254 192 21 / 6%), transparent 55%);
+}
+
+:root[data-theme='light'] body::before {
+  background:
+    radial-gradient(60rem 40rem at 12% -10%, rgb(33 80 160 / 8%), transparent 60%),
+    radial-gradient(45rem 32rem at 100% 8%, rgb(254 192 21 / 10%), transparent 55%);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+}
+
+img,
+picture,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  /* Negative tracking at display sizes. Montserrat is wide by default and
+     spaces out badly above ~1.5rem without it. */
+  letter-spacing: -0.022em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------ focus rings */
+
+/**
+ * A two-layer ring: a dark inner and a bright outer.
+ *
+ * A single-colour ring disappears against whichever surface happens to be
+ * behind it. Two layers are always visible on any of our five surfaces, which
+ * matters because keyboard operation is the fallback when someone is using this
+ * on a kiosk tablet with a stylus.
+ */
+:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--surface-base),
+    0 0 0 4px var(--kode-blue-bright);
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: rgb(33 80 160 / 45%);
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------- scrollbars */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+  background-clip: content-box;
+}
+
+/* ------------------------------------------------------------ boot splash */
+
+#boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--kode-blue-bright);
+  background: var(--surface-base);
+  z-index: 999;
+  animation: boot-pulse 1.6s var(--ease-in-out) infinite;
+}
+
+#root:not(:empty) + #boot {
+  display: none;
+}
+
+@keyframes boot-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------- reduced motion */
+
+/**
+ * Honoured properly rather than with a blanket `animation: none`.
+ *
+ * The status pulse on a live printer card conveys *information* — it is how you
+ * tell a stale panel from a live one. Removing it entirely would remove
+ * meaning, so durations collapse to near-zero and looping decorative animation
+ * stops, while state transitions still happen instantly.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  #boot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------- utility */
+
+.kode-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/** The micro-label used above every panel: tiny, wide, uppercase, dim. */
+.kode-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/**
+ * The diagonal accent lifted from the mark. Used as a left edge on section
+ * headers and as the cut on the hero panel.
+ */
+.kode-slash {
+  position: relative;
+  padding-left: var(--space-4);
+}
+
+.kode-slash::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(to bottom, var(--kode-gold), var(--kode-blue-bright));
+  transform: skewX(var(--kode-skew));
+}
+
+@media print {
+  body::before,
+  #boot {
+    display: none;
+  }
+}

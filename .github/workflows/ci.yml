@@ -1,0 +1,158 @@
+# CI (§B17.4).
+#
+# Pull request into dev: lint, typecheck, unit and integration tests, dependency
+# audit, licence check. Merge into main: the full suite plus the image build.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  verify:
+    name: Typecheck, lint and test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: kode_printer_test
+          POSTGRES_USER: kode_test
+          POSTGRES_PASSWORD: kode_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kode_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # Built first: the server and web packages consume its declarations.
+      - name: Build shared contracts
+        run: npm run build -w @kode/shared
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      # §B5 makes a disagreement between the routes and the spec a release
+      # blocker. It had drifted eighteen paths before anyone looked, because
+      # nothing looked.
+      - name: API contract matches the router
+        run: npm run check:api
+
+      # A one-character YAML error in the compose file made every documented
+      # deployment command unrunnable and nothing caught it, because nothing
+      # parsed the file. This is a second.
+      - name: Validate the deployment stack
+        run: docker compose config -q
+        env:
+          POSTGRES_PASSWORD: ci-not-a-real-password
+          JWT_SECRET: ci-not-a-real-secret
+          SECRET_KEY: ci-not-a-real-secret
+          PUBLIC_URL: https://ci.invalid
+          PUBLIC_HOSTNAME: ci.invalid
+          SCAN_SHARE_PASSWORD: ci-not-a-real-password
+
+      - name: Test
+        run: npm run test:coverage
+        env:
+          DATABASE_URL: postgres://kode_test:kode_test@127.0.0.1:5432/kode_printer_test
+          JWT_SECRET: ci-only-jwt-secret-not-used-anywhere-real-0123456789
+          SECRET_KEY: ci-only-secret-key-not-used-anywhere-real-9876543210
+          CORS_ORIGINS: http://localhost:5173
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+
+  security:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      # A06 in the OWASP coverage table (§B16.4) is the one gap with no
+      # compensating control in the application itself, so it is closed here.
+      - name: Audit
+        run: npm audit --audit-level=moderate
+
+      # Copyleft licences are a legal question, not a technical one, and this
+      # is an internal system distributed to nobody — so the check reports
+      # rather than blocks, and a human decides.
+      - name: Licence report
+        run: npx --yes license-checker-rseidelsohn --summary || true
+
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    needs: [verify, security]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/app.Dockerfile
+          push: false
+          tags: kode-printer:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The image must boot far enough to fail its guards for the *right*
+      # reason. A wrong reason — a missing module, a bad path — means the image
+      # is broken in a way the unit suite cannot see.
+      #
+      # This works because the configuration guards run before the migration
+      # step. While the order was the other way round, the unreachable database
+      # below failed first and the process died with "failed to start", so the
+      # assertion could never have passed. The job only runs on `main`, so
+      # nobody found out.
+      - name: Smoke test the boot guards
+        run: |
+          docker run --rm \
+            -e NODE_ENV=production -e KODE_DEBUG=false \
+            -e DATABASE_URL=postgres://nobody:nothing@127.0.0.1:5432/nothing \
+            -e JWT_SECRET=placeholder -e SECRET_KEY=placeholder \
+            kode-printer:${{ github.sha }} 2>&1 | tee boot.log || true
+          grep -q "Refusing to start" boot.log \
+            || (echo "Boot guards did not fire — the image is not behaving as built" && exit 1)
+          grep -q "JWT_SECRET" boot.log \
+            || (echo "Boot guards fired, but not for the placeholder secret" && exit 1)

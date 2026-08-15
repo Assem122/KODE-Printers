@@ -1,0 +1,19 @@
+{
+  "name": "@kode/fake-printer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Protocol harness: a scriptable printer that speaks RAW/9100, IPP and SNMP",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx src/index.ts",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "net-snmp": "^3.20.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}
