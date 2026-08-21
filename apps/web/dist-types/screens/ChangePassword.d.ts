@@ -9,5 +9,7 @@ import type { ReactElement } from 'react';
  * an operational reminder is not a control, and a dismissible prompt is exactly
  * that.
  */
-export declare function ChangePassword({ forced }: { forced?: boolean }): ReactElement;
+export declare function ChangePassword({ forced }: {
+    forced?: boolean;
+}): ReactElement;
 //# sourceMappingURL=ChangePassword.d.ts.map

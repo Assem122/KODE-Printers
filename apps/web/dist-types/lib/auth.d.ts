@@ -11,19 +11,21 @@ import type { LoginResult, Role, User } from '@kode/shared';
  * token somewhere script can read it.
  */
 interface AuthState {
-  user: User | null;
-  mustChangePassword: boolean;
-  pushPublicKey: string | null;
-  status: 'loading' | 'authenticated' | 'anonymous';
+    user: User | null;
+    mustChangePassword: boolean;
+    pushPublicKey: string | null;
+    status: 'loading' | 'authenticated' | 'anonymous';
 }
 interface AuthContextValue extends AuthState {
-  signIn: (username: string, password: string, rememberMe: boolean) => Promise<LoginResult>;
-  signOut: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-  isAdmin: boolean;
-  can: (role: Role) => boolean;
+    signIn: (username: string, password: string, rememberMe: boolean) => Promise<LoginResult>;
+    signOut: () => Promise<void>;
+    refreshUser: () => Promise<void>;
+    isAdmin: boolean;
+    can: (role: Role) => boolean;
 }
-export declare function AuthProvider({ children }: { children: ReactNode }): ReactElement;
+export declare function AuthProvider({ children }: {
+    children: ReactNode;
+}): ReactElement;
 export declare function useAuth(): AuthContextValue;
 export {};
 //# sourceMappingURL=auth.d.ts.map

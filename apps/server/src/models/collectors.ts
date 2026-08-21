@@ -1,18 +1,7 @@
 import type { Collector } from '@kode/shared';
 import type { Db } from '../db/pool.js';
 
-/**
- * Site collectors (§B11, ADR-007).
- *
- * Zero of these are deployed on a flat network and the system is unchanged by
- * their absence. The tables and interfaces exist now because the cost of
- * defining the boundary up front is a handful of interfaces, and the cost of
- * retrofitting it is a rewrite of every service that touches a printer.
- *
- * The API key is stored hashed and shown exactly once (INV-08). `api_key_prefix`
- * holds the first eight characters so an admin can tell two collectors apart in
- * the UI without the full key ever being retrievable.
- */
+
 
 interface CollectorRow {
   id: number;

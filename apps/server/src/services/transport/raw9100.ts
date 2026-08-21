@@ -84,12 +84,17 @@ export async function sendRaw(options: RawSendOptions): Promise<RawSendResult> {
         framingUsed: framing,
         durationMs: Date.now() - startedAt,
       };
-    } catch (error) {
+    }  catch (error) {
       lastError = error;
-      // Only a refused *connection* is worth retrying with different framing —
-      // some devices close on a PJL block they dislike. A timeout or an
-      // unreachable host will fail identically for every framing, so retrying
-      // three times just triples the wait.
+      const wroteFully = (error as NodeJS.ErrnoException & { writeCompleted?: boolean })
+        .writeCompleted;
+      if (wroteFully) {
+        log.warn(
+          { host: options.host, framing },
+          'device reset after accepting the full payload; NOT retrying (job likely printed)',
+        );
+        break;
+      }
       if (!isConnectionReset(error)) break;
       log.warn({ host: options.host, framing }, 'device reset the connection; trying next framing');
     }
@@ -110,19 +115,25 @@ interface WriteOptions {
   writeTimeoutMs: number;
 }
 
-function writeToSocket(options: WriteOptions): Promise<void> {
+function writeToSocket(options: WriteOptions): Promise<{ writeCompleted: boolean }> {
   return new Promise((resolve, reject) => {
+    let writeCompleted = false;
+
     const socket = new Socket();
     let settled = false;
     let connected = false;
-
-    const finish = (error?: Error): void => {
+    
+const finish = (error?: Error): void => {
       if (settled) return;
       settled = true;
       socket.removeAllListeners();
       socket.destroy();
-      if (error) reject(error);
-      else resolve();
+      if (error) {
+        (error as Error & { writeCompleted?: boolean }).writeCompleted = writeCompleted;
+        reject(error);
+      } else {
+        resolve({ writeCompleted });
+      }
     };
 
     socket.setTimeout(options.connectTimeoutMs);
@@ -155,6 +166,7 @@ function writeToSocket(options: WriteOptions): Promise<void> {
           finish(writeError);
           return;
         }
+        writeCompleted = true;
         socket.end(); // half-close: FIN signals end-of-job
       });
     });

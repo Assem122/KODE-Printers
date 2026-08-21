@@ -183,15 +183,13 @@ export async function send(db: Db, request: SendRequest): Promise<SendOutcome> {
       // Fall through to RAW below.
     }
   }
-
-  const result = await sendRaw({
+const result = await sendRaw({
     host: printer.ipAddress,
     document: request.document,
     contentType: request.contentType,
     pjl: toPjlOptions(request),
     ...(request.timeoutMs === undefined ? {} : { writeTimeoutMs: request.timeoutMs }),
   });
-
   return {
     transport: 'raw9100',
     jobUri: null,
@@ -230,9 +228,9 @@ function toPjlOptions(request: SendRequest): PjlOptions {
     orientation: options.orientation,
     jobName: request.jobName,
     username: request.username,
+    contentType: request.contentType,
   };
 }
-
 /**
  * Splits an IPP `printer-make-and-model` string into vendor and model.
  *

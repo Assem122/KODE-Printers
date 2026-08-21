@@ -191,7 +191,7 @@ export const printerCreateSchema = z.object({
   /** No `floor`: every KODE building is single-storey. */
   area: optionalTextSchema(120),
   hostname: optionalTextSchema(253),
-  transport: z.enum(TRANSPORTS).default('auto'),
+  transport: z.enum(TRANSPORTS).default('raw9100'),
   ippUri: z
     .string()
     .trim()

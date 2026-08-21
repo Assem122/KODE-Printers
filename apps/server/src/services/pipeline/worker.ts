@@ -228,17 +228,24 @@ async function processJob(job: DequeuedJob): Promise<void> {
       printer.capabilities.formats.includes('application/pdf');
 
     if (!acceptsPdf) {
-      const converted = await stage(
-        'pdf-to-postscript',
-        content,
-        () => pdfToPostScript(content, job.id),
-        degradations,
-      );
-      if (converted !== content) {
-        content = converted;
-        contentType = 'application/postscript';
+  const converted = await stage(
+    'pdf-to-postscript',
+    content,
+    async () => {
+      const ps = await pdfToPostScript(content, job.id);
+      // تحقق إن الناتج PostScript حقيقي قبل ما نبعته
+      if (!ps.subarray(0, 2).toString('latin1').startsWith('%!')) {
+        throw new Error('Ghostscript produced invalid PostScript output');
       }
-    }
+      return ps;
+    },
+    degradations,
+  );
+  if (converted !== content) {
+    content = converted;
+    contentType = 'application/postscript';
+  }
+}
 
     /* Ledger before send ---------------------------------------------------
      * ADR-008: the entry must exist before the impressions can appear on the

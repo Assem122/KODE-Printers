@@ -17,18 +17,18 @@ name: kode-printer
 services:
   db:
     image: postgres:16-alpine
+    ports:
+      - "5433:5432"
     restart: unless-stopped
+    networks:
+      - internal
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-kode_printer}
       POSTGRES_USER: ${POSTGRES_USER:-kode}
-      # No default. A compose file that boots with a known password is exactly
-      # what the GAP-04 boot guard exists to refuse.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_INITDB_ARGS: '--data-checksums'
     volumes:
       - db-data:/var/lib/postgresql/data
-    # Never published. §B18.2 lists 5432 as localhost-only, and in compose the
-    # equivalent is "reachable on the internal network and nowhere else".
     expose:
       - '5432'
     healthcheck:
@@ -37,18 +37,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    networks: [internal]
-    logging: &logging
-      driver: json-file
-      options:
-        max-size: '20m'
-        max-file: '5'
-
   app:
     build:
       context: .
       dockerfile: docker/app.Dockerfile
     restart: unless-stopped
+    
     depends_on:
       db:
         condition: service_healthy
@@ -78,12 +72,11 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       LOG_FORMAT: json
     volumes:
-      - uploads:/data/uploads
-      - scans:/data/scans
-      - templates:/data/templates
-      # The scan share and the app must see the same directory: the printer
-      # writes over SMB and the watcher reads from the filesystem.
-      - scans:/data/scans:rw
+    - uploads:/data/uploads
+    - scans:/data/scans
+    - templates:/data/templates
+    - scans:/data/scans:rw
+    - tmp:/data/tmp
     expose:
       - '3000'
     networks:
@@ -93,13 +86,13 @@ services:
       # the host is configured per site — see docs/RUNBOOK.md.
       - printers
     security_opt:
-      # bubblewrap needs to create user namespaces for the converter sandbox.
-      - seccomp:unconfined
-    cap_drop: [ALL]
+      - "seccomp:unconfined"
+    cap_drop:
+      - "ALL"
     cap_add:
-      # The only capabilities bwrap requires to build its jail.
-      - SYS_ADMIN
-    logging: *logging
+      - "SYS_ADMIN"
+    logging: &logging
+      driver: "json-file"
 
   caddy:
     image: caddy:2-alpine
@@ -117,9 +110,7 @@ services:
     environment:
       PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?set PUBLIC_HOSTNAME in .env}
     networks: [internal]
-    logging: *logging
-
-  # §B18.2 flags inbound SMB from printers as "the exception worth scrutiny".
+    logging: *logging  # §B18.2 flags inbound SMB from printers as "the exception worth scrutiny".
   # It is required by scan-to-folder and it is the rule most likely to be
   # refused across a VLAN boundary — where it is refused, that site needs a
   # collector with the share local to it (§B11).
@@ -150,6 +141,7 @@ volumes:
   uploads:
   scans:
   templates:
+  tmp:
   caddy-data:
   caddy-config:
 

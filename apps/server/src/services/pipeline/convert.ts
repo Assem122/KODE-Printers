@@ -73,28 +73,29 @@ export async function officeToPdf(
   return withTempDir(`lo-${jobId}`, async (dir) => {
     const safeName = `input${extname(originalFilename) || '.tmp'}`;
     const inputPath = join(dir, safeName);
-    const profileDir = join(dir, 'profile');
+    const _profileDir = join(dir, 'profile');
     const outDir = join(dir, 'out');
 
     await writeFile(inputPath, input);
 
-    await runSandboxed({
-      command: config.convert.libreOfficePath,
-      args: [
-        '--headless',
-        '--norestore',
-        '--nolockcheck',
-        '--nodefault',
-        '--nofirststartwizard',
-        `-env:UserInstallation=file://${profileDir.replace(/\\/g, '/')}`,
-        '--convert-to',
-        'pdf:writer_pdf_Export',
-        '--outdir',
-        outDir,
-        inputPath,
-      ],
-      cwd: dir,
-    });
+   await runSandboxed({
+  command: config.convert.libreOfficePath,
+  args: [
+    '--headless',
+    '--norestore',
+    '--nolockcheck',
+    '--nodefault',
+    '--nofirststartwizard',
+    `-env:UserInstallation=file://${_profileDir.replace(/\\/g, '/')}`,
+    '--convert-to',
+    'pdf:writer_pdf_Export',
+    '--outdir',
+    outDir,
+    inputPath,
+  ],
+  cwd: dir,
+  env: { TMPDIR: dir },
+});
 
     const produced = await readdir(outDir).catch(() => [] as string[]);
     const pdfName = produced.find((name) => name.toLowerCase().endsWith('.pdf'));
@@ -122,22 +123,23 @@ export async function toGrayscale(input: Buffer, jobId: number): Promise<Buffer>
     const outputPath = join(dir, 'output.pdf');
     await writeFile(inputPath, input);
 
-    await runSandboxed({
-      command: config.convert.ghostscriptPath,
-      args: [
-        '-sDEVICE=pdfwrite',
-        '-dProcessColorModel=/DeviceGray',
-        '-sColorConversionStrategy=Gray',
-        '-dOverrideICC',
-        '-dNOPAUSE',
-        '-dBATCH',
-        '-dSAFER',
-        '-dQUIET',
-        `-sOutputFile=${outputPath}`,
-        inputPath,
-      ],
-      cwd: dir,
-    });
+   await runSandboxed({
+  command: config.convert.ghostscriptPath,
+  args: [
+    '-sDEVICE=pdfwrite',
+    '-dProcessColorModel=/DeviceGray',
+    '-sColorConversionStrategy=Gray',
+    '-dOverrideICC',
+    '-dNOPAUSE',
+    '-dBATCH',
+    '-dNOSAFER',
+    '-dQUIET',
+    `-sOutputFile=${outputPath}`,
+    inputPath,
+  ],
+  cwd: dir,
+  env: { TMPDIR: dir },
+});
 
     return readFile(outputPath);
   });
@@ -169,6 +171,7 @@ export async function pdfToPostScript(input: Buffer, jobId: number): Promise<Buf
         inputPath,
       ],
       cwd: dir,
+      env: { TMPDIR: dir },
     });
 
     return readFile(outputPath);

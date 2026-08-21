@@ -81,6 +81,7 @@ COPY --from=build --chown=kode:kode /build/node_modules ./node_modules
 COPY --from=build --chown=kode:kode /build/packages/shared/dist ./packages/shared/dist
 COPY --from=build --chown=kode:kode /build/packages/shared/package.json ./packages/shared/
 COPY --from=build --chown=kode:kode /build/apps/server/dist ./dist
+COPY --from=build --chown=kode:kode /build/apps/server/src/db/migrations ./dist/db/migrations
 COPY --from=build --chown=kode:kode /build/apps/server/public ./public
 COPY --from=build --chown=kode:kode /build/apps/server/package.json ./
 
@@ -95,8 +96,7 @@ USER kode
 # implied by `--unshare-all` and stated anyway, because a security control that
 # depends on an aggregate flag's contents is one upstream change from silently
 # not applying.
-ENV CONVERT_SANDBOX_CMD="bwrap --unshare-all --unshare-net --die-with-parent --ro-bind / / --dev /dev --bind /data/tmp /data/tmp --proc /proc"
-
+ENV CONVERT_SANDBOX_CMD="bwrap --unshare-all --unshare-net --die-with-parent --ro-bind / / --dev /dev --bind /data/tmp /data/tmp --bind /tmp /tmp --proc /proc"
 EXPOSE 3000
 
 # §B13.3 — /health answers "is the process alive", which is exactly the question

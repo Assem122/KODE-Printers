@@ -34,7 +34,15 @@ export interface PjlOptions {
   orientation: 'portrait' | 'landscape';
   jobName: string;
   username: string;
+  /** MIME type of the document following this header — determines the PJL LANGUAGE. */
+  contentType: string;
 }
+
+const CONTENT_TYPE_TO_PJL_LANGUAGE: Readonly<Record<string, string>> = {
+  'application/pdf': 'PDF',
+  'application/postscript': 'POSTSCRIPT',
+  'application/vnd.hp-pcl': 'PCL',
+};
 
 /** Universal Exit Language — the escape sequence that opens a PJL block. */
 const UEL = '\u001B%-12345X';
@@ -157,7 +165,10 @@ export function buildPjlHeader(options: PjlOptions, includeLanguage: boolean): B
     '@PJL SET RESOLUTION=600',
   );
 
-  if (includeLanguage) lines.push('@PJL ENTER LANGUAGE=POSTSCRIPT');
+ if (includeLanguage) {
+    const language = CONTENT_TYPE_TO_PJL_LANGUAGE[options.contentType];
+    if (language) lines.push('@PJL ENTER LANGUAGE=' + language);
+  }
 
   return Buffer.from(lines.join('\r\n') + '\r\n', 'latin1');
 }

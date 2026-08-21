@@ -6,7 +6,7 @@
   "description": "KODE Printer API, print pipeline, device watchers and site-collector agent",
   "main": "./dist/server.js",
   "scripts": {
-    "build": "tsc -b && node scripts/copy-assets.mjs",
+    "build": "tsc -b",
     "dev": "tsx watch --env-file-if-exists=../../.env --clear-screen=false src/server.ts",
     "start": "node dist/server.js",
     "migrate": "tsx --env-file-if-exists=../../.env src/db/migrate.ts",
@@ -54,3 +54,4 @@
     "tsx": "^4.19.2"
   }
 }
+
