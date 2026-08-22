@@ -19,7 +19,7 @@ interface TemplateRow {
   original_filename: string;
   page_count: number | null;
   default_options: Partial<PrintOptions> | null;
-  site_id: number | null;
+  zone_id: number | null;
   is_active: boolean;
   times_used: number;
   created_at: string;
@@ -33,7 +33,7 @@ const toTemplate = (row: TemplateRow): PrintTemplate => ({
   originalFilename: row.original_filename,
   pageCount: row.page_count,
   defaultOptions: row.default_options ?? {},
-  siteId: row.site_id,
+  zoneId: row.zone_id,
   isActive: row.is_active,
   timesUsed: row.times_used,
   createdAt: row.created_at,
@@ -41,7 +41,7 @@ const toTemplate = (row: TemplateRow): PrintTemplate => ({
 
 const COLUMNS = `
   id, name, description, stored_filename, original_filename, page_count,
-  default_options, site_id, is_active, times_used, created_at
+  default_options, zone_id, is_active, times_used, created_at
 `;
 
 export async function listTemplates(db: Db, includeInactive = false): Promise<PrintTemplate[]> {
@@ -72,13 +72,13 @@ export async function insertTemplate(
     fileHash: string | null;
     pageCount: number | null;
     defaultOptions: Partial<PrintOptions>;
-    siteId: number | null;
+    zoneId: number | null;
     createdBy: number | null;
   },
 ): Promise<PrintTemplate> {
   const { rows } = await db.query<TemplateRow>(
     `INSERT INTO print_templates (name, description, stored_filename, original_filename,
-                                  file_hash, page_count, default_options, site_id, created_by)
+                                  file_hash, page_count, default_options, zone_id, created_by)
      VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9)
      RETURNING ${COLUMNS}`,
     [
@@ -89,7 +89,7 @@ export async function insertTemplate(
       input.fileHash,
       input.pageCount,
       JSON.stringify(input.defaultOptions),
-      input.siteId,
+      input.zoneId,
       input.createdBy,
     ],
   );
@@ -105,7 +105,7 @@ export async function updateTemplate(
     name?: string;
     description?: string | null;
     defaultOptions?: Partial<PrintOptions>;
-    siteId?: number | null;
+    zoneId?: number | null;
     isActive?: boolean;
   },
 ): Promise<PrintTemplate | null> {
@@ -114,7 +114,7 @@ export async function updateTemplate(
         SET name            = COALESCE($2, name),
             description     = COALESCE($3, description),
             default_options = COALESCE($4::jsonb, default_options),
-            site_id         = COALESCE($5, site_id),
+            zone_id         = COALESCE($5, zone_id),
             is_active       = COALESCE($6, is_active)
       WHERE id = $1
       RETURNING ${COLUMNS}`,
@@ -123,7 +123,7 @@ export async function updateTemplate(
       patch.name ?? null,
       patch.description ?? null,
       patch.defaultOptions ? JSON.stringify(patch.defaultOptions) : null,
-      patch.siteId ?? null,
+      patch.zoneId ?? null,
       patch.isActive ?? null,
     ],
   );

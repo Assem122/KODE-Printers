@@ -3,10 +3,9 @@ import { AppError, computeImpressions, isDuplex, type Job, type PrintOptions } f
 import { config } from '../../config/index.js';
 import { withTransaction, type Db } from '../../db/pool.js';
 import { jobsModel } from '../../models/jobs.js';
-import { quotasModel } from '../../models/quotas.js';
-import { getSettings } from '../../models/settings.js';
 import type { PrinterWithSecrets } from '../../models/printers.js';
 import { serialiseError, subsystem } from '../../utilities/logger.js';
+import { getSettings } from '../../models/settings.js';
 import { events } from '../events.js';
 import { checkSubmission } from '../transport/safety.js';
 import { countPdfPages, verifyMagicBytes } from './prepare.js';
@@ -88,9 +87,9 @@ export async function submitJob(input: SubmitInput): Promise<SubmitResult> {
 
   const fileHash = createHash('sha256').update(input.content).digest('hex');
 
-  // Page count now, so the impression figure the safety gate and the quota
-  // check use is the real one. An Office document cannot be counted before
-  // conversion, so it is estimated from size and corrected by the worker.
+  // Page count now, so the impression figure the safety gate uses is the
+  // real one. An Office document cannot be counted before conversion, so it
+  // is estimated from size and corrected by the worker.
   const { pages, estimated } = await estimatePages(input.content, input.originalFilename);
   const selectedPages = countSelectedPages(pages, input.options);
   const impressions = computeImpressions({
@@ -134,11 +133,9 @@ export async function submitJob(input: SubmitInput): Promise<SubmitResult> {
         );
       }
 
-      await assertWithinQuota(tx, input, impressions, settings.quotaEnforcementEnabled);
-
       const job = await jobsModel.insert(tx, {
         printerId: input.printer.id,
-        siteId: input.printer.siteId,
+        zoneId: input.printer.zoneId,
         userId: input.actor.id,
         // INV-06 — snapshots written at insert time, so the record stays readable
         // after the user or printer record changes or is removed.
@@ -194,50 +191,6 @@ export function publishJob(job: Job): void {
   events.jobUpdated(job);
 }
 
-/* ------------------------------------------------------------------ quota  */
-
-/**
- * Quota enforcement (DEC-05).
- *
- * Off by default. When on, the message names the specific limit that bound —
- * a user can be subject to a personal and a departmental quota at once, and
- * "you are over quota" without saying which is not actionable.
- */
-async function assertWithinQuota(
-  db: Db,
-  input: SubmitInput,
-  impressions: number,
-  enforcementEnabled: boolean,
-): Promise<void> {
-  if (!enforcementEnabled) return;
-
-  const quotas = await quotasModel.enforcingFor(
-    db,
-    { id: input.actor.id, department: input.actor.department },
-    input.printer.siteId,
-  );
-
-  for (const quota of quotas) {
-    if (quota.usedPages + impressions <= quota.pageLimit) continue;
-    const remaining = Math.max(0, quota.pageLimit - quota.usedPages);
-    throw new AppError(
-      'QUOTA_EXCEEDED',
-      `This job needs ${impressions} pages but only ${remaining} remain in your ` +
-        `${quota.period} ${quota.scope} allowance of ${quota.pageLimit}.`,
-      {
-        details: {
-          scope: quota.scope,
-          period: quota.period,
-          limit: quota.pageLimit,
-          used: quota.usedPages,
-          requested: impressions,
-        },
-        retryable: false,
-      },
-    );
-  }
-}
-
 /* ------------------------------------------------------------- page counts */
 
 /**
@@ -245,7 +198,7 @@ async function assertWithinQuota(
  *
  * A PDF is counted properly. An Office document cannot be — its page count is
  * not knowable without rendering it — so a deliberately conservative estimate
- * is used for the safety and quota checks, and the worker overwrites it with
+ * is used for the safety check, and the worker overwrites it with
  * the true figure after conversion.
  *
  * Conservative means *low*: over-estimating would refuse legitimate jobs at the

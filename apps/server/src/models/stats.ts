@@ -28,7 +28,7 @@ import { WhereBuilder } from '../db/sql.js';
 export interface StatsScope {
   from: string;
   to: string;
-  siteId?: number | undefined;
+  zoneId?: number | undefined;
   printerId?: number | undefined;
   userId?: number | undefined;
   /** INV-01 — non-admin callers are scoped to their permitted printers. */
@@ -40,7 +40,7 @@ function scopeWhere(scope: StatsScope, alias = 'j'): WhereBuilder {
   where.add(`${alias}.created_at >= ?::timestamptz`, scope.from);
   where.add(`${alias}.created_at < (?::timestamptz + interval '1 day')`, scope.to);
   where.add(`${alias}.status IN ('sent','completed')`);
-  where.addIf(scope.siteId, `${alias}.site_id = ?`, scope.siteId);
+  where.addIf(scope.zoneId, `${alias}.zone_id = ?`, scope.zoneId);
   where.addIf(scope.printerId, `${alias}.printer_id = ?`, scope.printerId);
   where.addIf(scope.userId, `${alias}.user_id = ?`, scope.userId);
   if (scope.permittedPrinterIds) {
@@ -97,7 +97,7 @@ export async function usageSummary(
   const gapWhere = new WhereBuilder();
   gapWhere.add('p.is_active');
   gapWhere.add("(p.snmp_version = 'disabled' OR p.snmp_community IS NULL)");
-  gapWhere.addIf(scope.siteId, 'p.site_id = ?', scope.siteId);
+  gapWhere.addIf(scope.zoneId, 'p.zone_id = ?', scope.zoneId);
   gapWhere.addIf(scope.printerId, 'p.id = ?', scope.printerId);
   if (scope.permittedPrinterIds) {
     gapWhere.add('p.id = ANY(?::int[])', [...scope.permittedPrinterIds]);
@@ -171,7 +171,7 @@ export async function timeSeries(
   }));
 }
 
-export type LeaderboardDimension = 'user' | 'printer' | 'site' | 'department';
+export type LeaderboardDimension = 'user' | 'printer' | 'zone' | 'department';
 
 export async function leaderboard(
   db: Db,
@@ -193,10 +193,10 @@ export async function leaderboard(
       label: 'j.printer_name_snapshot',
       join: '',
     },
-    site: {
-      key: "COALESCE(j.site_id::text, 'none')",
-      label: "COALESCE(s.name, 'Unassigned')",
-      join: 'LEFT JOIN sites s ON s.id = j.site_id',
+    zone: {
+      key: "COALESCE(j.zone_id::text, 'none')",
+      label: "COALESCE(z.label, 'Unassigned')",
+      join: 'LEFT JOIN zones z ON z.id = j.zone_id',
     },
     department: {
       key: "COALESCE(u.department, 'Unassigned')",
@@ -243,40 +243,6 @@ export async function leaderboard(
   }));
 }
 
-/** Pages consumed in the current quota period, for the quota panel. */
-export async function quotaUsage(
-  db: Db,
-  scope: 'user' | 'department' | 'site',
-  scopeRef: string,
-  period: 'daily' | 'weekly' | 'monthly',
-): Promise<number> {
-  const TRUNC: Readonly<Record<string, string>> = {
-    daily: 'day',
-    weekly: 'week',
-    monthly: 'month',
-  };
-  const unit = TRUNC[period] ?? 'month';
-
-  const predicate =
-    scope === 'user'
-      ? 'j.user_id = $1::int'
-      : scope === 'site'
-        ? 'j.site_id = $1::int'
-        : 'u.department = $1';
-
-  const { rows } = await db.query<{ used: number }>(
-    `SELECT COALESCE(sum(COALESCE(j.impressions, j.pages * j.copies)), 0)::int AS used
-       FROM jobs j
-       ${scope === 'department' ? 'LEFT JOIN users u ON u.id = j.user_id' : ''}
-      WHERE ${predicate}
-        AND j.created_at >= date_trunc('${unit}', now())
-        AND j.status IN ('sent','completed')
-        AND j.job_type <> 'scan'`,
-    [scopeRef],
-  );
-  return rows[0]?.used ?? 0;
-}
-
 /** Feeds the "days until empty" forecast on the fleet board. */
 export async function supplyBurnRate(
   db: Db,
@@ -317,6 +283,5 @@ export const statsModel = {
   usageSummary,
   timeSeries,
   leaderboard,
-  quotaUsage,
   supplyBurnRate,
 } as const;

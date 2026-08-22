@@ -15,7 +15,6 @@ interface SettingsRow {
   upload_retention_days: number;
   scan_retention_days: number;
   notification_retention_days: number;
-  quota_enforcement_enabled: boolean;
   max_job_impressions: number;
   large_job_warn_impressions: number;
   max_concurrent_jobs_per_printer: number;
@@ -34,7 +33,6 @@ const toSettings = (row: SettingsRow): AppSettings => ({
   uploadRetentionDays: row.upload_retention_days,
   scanRetentionDays: row.scan_retention_days,
   notificationRetentionDays: row.notification_retention_days,
-  quotaEnforcementEnabled: row.quota_enforcement_enabled,
   maxJobImpressions: row.max_job_impressions,
   largeJobWarnImpressions: row.large_job_warn_impressions,
   maxConcurrentJobsPerPrinter: row.max_concurrent_jobs_per_printer,
@@ -51,7 +49,7 @@ const toSettings = (row: SettingsRow): AppSettings => ({
 
 const SELECT = `
   SELECT upload_retention_days, scan_retention_days, notification_retention_days,
-         quota_enforcement_enabled, max_job_impressions, large_job_warn_impressions,
+         max_job_impressions, large_job_warn_impressions,
          max_concurrent_jobs_per_printer, printer_cooldown_seconds,
          cost_per_page_mono, cost_per_page_color, currency, co2_grams_per_impression,
          email_enabled, web_push_enabled, scan_reservation_minutes, walkup_report_label
@@ -59,8 +57,7 @@ const SELECT = `
 `;
 
 /**
- * Settings are read on nearly every print submission (impression caps, quota
- * enforcement) and on every report render. A short cache keeps that off the
+ * Settings are read on nearly every print submission (impression caps) and on every report render. A short cache keeps that off the
  * database without making an admin's change take minutes to appear.
  *
  * Two seconds is chosen so a settings save followed by a page reload always
@@ -97,7 +94,6 @@ const COLUMN_BY_FIELD: Readonly<Record<keyof AppSettings, string>> = {
   uploadRetentionDays: 'upload_retention_days',
   scanRetentionDays: 'scan_retention_days',
   notificationRetentionDays: 'notification_retention_days',
-  quotaEnforcementEnabled: 'quota_enforcement_enabled',
   maxJobImpressions: 'max_job_impressions',
   largeJobWarnImpressions: 'large_job_warn_impressions',
   maxConcurrentJobsPerPrinter: 'max_concurrent_jobs_per_printer',
@@ -138,7 +134,7 @@ export async function updateSettings(
         SET ${assignments.join(', ')}, updated_at = now(), updated_by = $${values.length}
       WHERE id = TRUE
       RETURNING upload_retention_days, scan_retention_days, notification_retention_days,
-                quota_enforcement_enabled, max_job_impressions, large_job_warn_impressions,
+                max_job_impressions, large_job_warn_impressions,
                 max_concurrent_jobs_per_printer, printer_cooldown_seconds,
                 cost_per_page_mono, cost_per_page_color, currency, co2_grams_per_impression,
                 email_enabled, web_push_enabled, scan_reservation_minutes, walkup_report_label`,

@@ -6,8 +6,6 @@ import {
   JOB_TYPES,
   MEDIA_SIZES,
   PAGINATION,
-  QUOTA_PERIODS,
-  QUOTA_SCOPES,
   ROLES,
   SEVERITIES,
   SIDES,
@@ -163,9 +161,9 @@ export const changePasswordSchema = z
     path: ['newPassword'],
   });
 
-/* ------------------------------------------------------------------ sites  */
+/* ------------------------------------------------------------------ zones  */
 
-export const siteCreateSchema = z.object({
+export const zoneCreateSchema = z.object({
   code: z
     .string()
     .trim()
@@ -173,12 +171,11 @@ export const siteCreateSchema = z.object({
     .min(2)
     .max(12)
     .regex(/^[A-Z0-9-]+$/, 'Use capital letters, numbers and hyphens.'),
-  name: safeTextSchema(120, 'Site name'),
-  address: optionalTextSchema(300),
+  label: safeTextSchema(120, 'Zone label'),
   isActive: z.boolean().default(true),
 });
 
-export const siteUpdateSchema = siteCreateSchema
+export const zoneUpdateSchema = zoneCreateSchema
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Provide at least one field to update.');
 
@@ -187,11 +184,11 @@ export const siteUpdateSchema = siteCreateSchema
 export const printerCreateSchema = z.object({
   name: safeTextSchema(120, 'Printer name'),
   ipAddress: privateIpv4Schema,
-  siteId: idSchema.nullable().optional(),
+  zoneId: idSchema.nullable().optional(),
   /** No `floor`: every KODE building is single-storey. */
   area: optionalTextSchema(120),
   hostname: optionalTextSchema(253),
-  transport: z.enum(TRANSPORTS).default('raw9100'),
+  transport: z.enum(TRANSPORTS).default('auto'),
   ippUri: z
     .string()
     .trim()
@@ -224,7 +221,7 @@ export const printerUpdateSchema = printerCreateSchema
   .refine((v) => Object.keys(v).length > 0, 'Provide at least one field to update.');
 
 export const printerQuerySchema = paginationSchema.extend({
-  siteId: idSchema.optional(),
+  zoneId: idSchema.optional(),
   status: z.enum(['online', 'offline', 'degraded', 'unknown']).optional(),
   search: z.string().trim().max(120).optional(),
   includeInactive: z.coerce.boolean().default(false),
@@ -277,7 +274,7 @@ export const printSubmitSchema = z.object({
 
 export const jobQuerySchema = paginationSchema.extend({
   printerId: idSchema.optional(),
-  siteId: idSchema.optional(),
+  zoneId: idSchema.optional(),
   userId: idSchema.optional(),
   status: z.enum(JOB_STATUSES).optional(),
   source: z.enum(JOB_SOURCES).optional(),
@@ -391,23 +388,9 @@ export const scanClaimSchema = z.object({
 export const templateCreateSchema = z.object({
   name: safeTextSchema(120, 'Template name'),
   description: optionalTextSchema(500),
-  siteId: idSchema.nullable().optional(),
+  zoneId: idSchema.nullable().optional(),
   defaultOptions: printOptionsSchema.partial().default({}),
 });
-
-/* ----------------------------------------------------------------- quotas  */
-
-export const quotaCreateSchema = z.object({
-  scope: z.enum(QUOTA_SCOPES),
-  scopeRef: safeTextSchema(120, 'Scope reference'),
-  period: z.enum(QUOTA_PERIODS),
-  pageLimit: z.coerce.number().int().min(1).max(1_000_000),
-  enforce: z.boolean().default(false),
-});
-
-export const quotaUpdateSchema = quotaCreateSchema
-  .partial()
-  .refine((v) => Object.keys(v).length > 0, 'Provide at least one field to update.');
 
 /* --------------------------------------------------------------- settings  */
 
@@ -416,7 +399,6 @@ export const settingsUpdateSchema = z
     uploadRetentionDays: z.coerce.number().int().min(0).max(3650),
     scanRetentionDays: z.coerce.number().int().min(1).max(3650),
     notificationRetentionDays: z.coerce.number().int().min(7).max(3650),
-    quotaEnforcementEnabled: z.boolean(),
     maxJobImpressions: z.coerce.number().int().min(1).max(100_000),
     largeJobWarnImpressions: z.coerce.number().int().min(1).max(100_000),
     maxConcurrentJobsPerPrinter: z.coerce.number().int().min(1).max(10),
@@ -449,7 +431,7 @@ export const statsQuerySchema = z
   .object({
     from: isoDateSchema,
     to: isoDateSchema,
-    siteId: idSchema.optional(),
+    zoneId: idSchema.optional(),
     printerId: idSchema.optional(),
     userId: idSchema.optional(),
     bucket: z.enum(['hour', 'day', 'week', 'month']).default('day'),
@@ -481,7 +463,7 @@ export const auditQuerySchema = paginationSchema.extend({
 
 export const collectorCreateSchema = z.object({
   name: safeTextSchema(120, 'Collector name'),
-  siteId: idSchema,
+  zoneId: idSchema,
 });
 
 export const collectorHeartbeatSchema = z.object({
@@ -551,5 +533,4 @@ export type UserCreateInput = z.input<typeof userCreateSchema>;
 export type SettingsUpdateInput = z.input<typeof settingsUpdateSchema>;
 export type JobQueryInput = z.input<typeof jobQuerySchema>;
 export type StatsQueryInput = z.input<typeof statsQuerySchema>;
-export type QuotaCreateInput = z.input<typeof quotaCreateSchema>;
 export type CollectorEventsInput = z.input<typeof collectorEventsSchema>;

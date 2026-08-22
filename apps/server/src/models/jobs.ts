@@ -23,7 +23,7 @@ import { applyKeyset, toPage, WhereBuilder } from '../db/sql.js';
 interface JobRow {
   id: number;
   printer_id: number | null;
-  site_id: number | null;
+  zone_id: number | null;
   user_id: number | null;
   username_snapshot: string;
   printer_name_snapshot: string;
@@ -50,7 +50,7 @@ interface JobRow {
 }
 
 const JOB_COLUMNS = `
-  j.id, j.printer_id, j.site_id, j.user_id, j.username_snapshot, j.printer_name_snapshot,
+  j.id, j.printer_id, j.zone_id, j.user_id, j.username_snapshot, j.printer_name_snapshot,
   j.source, j.job_type, j.status, j.pages, j.copies, j.impressions, j.color_mode, j.duplex,
   j.document_name, j.file_hash, j.print_options, j.transport_used, j.attempts, j.max_attempts,
   j.next_attempt_at, j.error_code, j.notes, j.page_count_estimated, j.created_at, j.completed_at
@@ -59,7 +59,7 @@ const JOB_COLUMNS = `
 const toJob = (row: JobRow): Job => ({
   id: row.id,
   printerId: row.printer_id,
-  siteId: row.site_id,
+  zoneId: row.zone_id,
   userId: row.user_id,
   usernameSnapshot: row.username_snapshot,
   printerNameSnapshot: row.printer_name_snapshot,
@@ -87,7 +87,7 @@ const toJob = (row: JobRow): Job => ({
 
 export interface JobFilter {
   printerId?: number | undefined;
-  siteId?: number | undefined;
+  zoneId?: number | undefined;
   userId?: number | undefined;
   status?: JobStatus | undefined;
   source?: JobSource | undefined;
@@ -106,7 +106,7 @@ export interface JobFilter {
 function buildJobWhere(filter: JobFilter): WhereBuilder {
   const where = new WhereBuilder();
   where.addIf(filter.printerId, 'j.printer_id = ?', filter.printerId);
-  where.addIf(filter.siteId, 'j.site_id = ?', filter.siteId);
+  where.addIf(filter.zoneId, 'j.zone_id = ?', filter.zoneId);
   where.addIf(filter.userId, 'j.user_id = ?', filter.userId);
   where.addIf(filter.status, 'j.status = ?', filter.status);
   where.addIf(filter.source, 'j.source = ?', filter.source);
@@ -186,7 +186,7 @@ export async function findJob(db: Db, id: number): Promise<Job | null> {
 
 export interface JobInsert {
   printerId: number | null;
-  siteId: number | null;
+  zoneId: number | null;
   userId: number | null;
   usernameSnapshot: string;
   printerNameSnapshot: string;
@@ -210,7 +210,7 @@ export interface JobInsert {
 
 export async function insertJob(db: Db, input: JobInsert): Promise<Job> {
   const { rows } = await db.query<JobRow>(
-    `INSERT INTO jobs (printer_id, site_id, user_id, username_snapshot, printer_name_snapshot,
+    `INSERT INTO jobs (printer_id, zone_id, user_id, username_snapshot, printer_name_snapshot,
                        source, job_type, status, pages, copies, impressions, color_mode, duplex,
                        document_name, file_path, file_hash, print_options, max_attempts, notes,
                        request_id, page_count_estimated)
@@ -218,7 +218,7 @@ export async function insertJob(db: Db, input: JobInsert): Promise<Job> {
      RETURNING ${JOB_COLUMNS.replace(/j\./g, '')}`,
     [
       input.printerId,
-      input.siteId,
+      input.zoneId,
       input.userId,
       input.usernameSnapshot,
       input.printerNameSnapshot,

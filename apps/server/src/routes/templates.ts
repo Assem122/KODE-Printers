@@ -87,7 +87,7 @@ templatesRouter.post(
     const metaResult = templateCreateSchema.safeParse({
       name: (req.body as Record<string, unknown>)['name'],
       description: (req.body as Record<string, unknown>)['description'],
-      siteId: (req.body as Record<string, unknown>)['siteId'],
+      zoneId: (req.body as Record<string, unknown>)['zoneId'],
       defaultOptions: JSON.parse(
         typeof (req.body as Record<string, unknown>)['defaultOptions'] === 'string'
           ? ((req.body as Record<string, string>)['defaultOptions'] ?? '{}')
@@ -115,7 +115,7 @@ templatesRouter.post(
           fileHash: createHash('sha256').update(file.buffer).digest('hex'),
           pageCount,
           defaultOptions: compact(meta.defaultOptions),
-          siteId: meta.siteId ?? null,
+          zoneId: meta.zoneId ?? null,
           createdBy: actor.id,
         }),
       { req, action: 'template.create', entityType: 'template', entityId: (created) => created.id },
@@ -129,7 +129,7 @@ templatesRouter.post(
  * Print a template.
  *
  * The stored file is re-submitted through the ordinary pipeline rather than
- * shortcut to the transport: the safety gate, the quota check, the ledger entry
+ * shortcut to the transport: the safety gate, the ledger entry
  * and the audit row all have to happen, and a second path that skipped them
  * would be the obvious place for those guarantees to quietly stop holding.
  */

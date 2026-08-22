@@ -54,7 +54,7 @@ export function Fleet(): ReactElement {
     const needle = search.trim().toLowerCase();
     if (!needle) return printers;
     return printers.filter((printer) =>
-      [printer.name, printer.area, printer.model, printer.siteName, printer.ipAddress]
+      [printer.name, printer.area, printer.model, printer.zoneLabel, printer.ipAddress]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle)),
     );
@@ -63,7 +63,7 @@ export function Fleet(): ReactElement {
   const grouped = useMemo(() => {
     const groups = new Map<string, Printer[]>();
     for (const printer of filtered) {
-      const key = printer.siteName ?? 'Unassigned';
+      const key = printer.zoneLabel ?? 'Unassigned';
       const bucket = groups.get(key);
       if (bucket) bucket.push(printer);
       else groups.set(key, [printer]);
@@ -140,9 +140,9 @@ export function Fleet(): ReactElement {
         </Card>
       ) : (
         <div className="stack" style={{ gap: 'var(--space-6)' }}>
-          {grouped.map(([site, group]) => (
-            <section key={site}>
-              <h2 className="section-title kode-slash">{site}</h2>
+          {grouped.map(([zone, group]) => (
+            <section key={zone}>
+              <h2 className="section-title kode-slash">{zone}</h2>
               <div className="grid-cards">
                 {group.map((printer, index) => (
                   <motion.div
@@ -368,7 +368,7 @@ function QrModal({
           />
           <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>{printer.name}</div>
           <div className="dim" style={{ fontSize: 'var(--text-sm)' }}>
-            {[printer.siteName, printer.area].filter(Boolean).join(' · ')}
+            {[printer.zoneLabel, printer.area].filter(Boolean).join(' · ')}
           </div>
           <p className="muted" style={{ fontSize: 'var(--text-sm)', maxWidth: '40ch' }}>
             Tape this to the printer. Anyone with access can scan it with a phone camera to open the

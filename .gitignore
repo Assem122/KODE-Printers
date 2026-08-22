@@ -30,6 +30,3 @@ Thumbs.db
 # Test output
 playwright-report/
 test-results/
-
-apps/server/data/
-docker/certs/

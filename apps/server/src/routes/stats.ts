@@ -28,7 +28,7 @@ statsRouter.use(authenticate, requirePasswordChanged);
 
 const leaderboardQuery = statsQuerySchema.and(
   z.object({
-    dimension: z.enum(['user', 'printer', 'site', 'department']).default('user'),
+    dimension: z.enum(['user', 'printer', 'zone', 'department']).default('user'),
     limit: z.coerce.number().int().min(1).max(50).default(10),
   }),
 );

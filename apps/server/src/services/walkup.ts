@@ -38,7 +38,7 @@ export interface VendorCounters {
 export interface AttributionTarget {
   id: number;
   name: string;
-  siteId: number | null;
+  zoneId: number | null;
 }
 
 export interface AttributionOutcome {
@@ -108,7 +108,7 @@ async function logWalkup(
   for (const classification of classifications) {
     const job = await jobsModel.insert(db, {
       printerId: printer.id,
-      siteId: printer.siteId,
+      zoneId: printer.zoneId,
       // The system account owns walk-up jobs, so every row has a stable,
       // non-impersonatable actor rather than a NULL that reports must special-case.
       userId: systemUser.id,

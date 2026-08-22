@@ -172,10 +172,10 @@ function uniqueMessage(constraint: string | null): string {
       return 'Another active printer already uses that IP address.';
     case 'printers_serial_uq':
       return 'A printer with that serial number is already registered.';
-    case 'sites_code_key':
-      return 'That site code is already in use.';
-    case 'sites_name_key':
-      return 'That site name is already in use.';
+    case 'zones_code_key':
+      return 'That zone code is already in use.';
+    case 'zones_label_key':
+      return 'That zone label is already in use.';
     case 'print_templates_name_key':
       return 'A template with that name already exists.';
     case 'scan_reservation_active_uq':

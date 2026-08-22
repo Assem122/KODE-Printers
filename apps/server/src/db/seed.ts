@@ -20,13 +20,13 @@ import { logger, serialiseError } from '../utilities/logger.js';
  *     and with `KODE_DEBUG=false` the process refuses to boot while any account
  *     still holds it. §B12.4: "An operational reminder is not a control."
  *
- * Sites are seeded from the club's actual layout, which the architecture
- * document leaves as a GAP (GAP-14) because it had no site model at all.
+ * Zones are seeded from the club's actual layout, which the architecture
+ * document leaves as a GAP (GAP-14) because it had no zone model at all.
  */
 
-const SITES: ReadonlyArray<{ code: string; name: string }> = [
-  { code: 'MAIN', name: 'Main Office' },
-  { code: 'CLUB', name: 'Club House' },
+const ZONES: ReadonlyArray<{ code: string; label: string }> = [
+  { code: 'MAIN', label: 'Main Office' },
+  { code: 'CLUB', label: 'Club House' },
 ];
 
 async function seed(): Promise<void> {
@@ -45,12 +45,12 @@ async function seed(): Promise<void> {
       logger.info('created the system account that owns walk-up activity');
     }
 
-    /* ------------------------------------------------------------ sites   */
+    /* ------------------------------------------------------------ zones   */
 
-    for (const site of SITES) {
+    for (const zone of ZONES) {
       await tx.query(
-        `INSERT INTO sites (code, name) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING`,
-        [site.code, site.name],
+        `INSERT INTO zones (code, label) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING`,
+        [zone.code, zone.label],
       );
     }
 

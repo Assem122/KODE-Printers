@@ -137,7 +137,7 @@ printersRouter.post(
         printersModel.insert(tx, {
           name: input.name,
           ipAddress: input.ipAddress,
-          siteId: input.siteId ?? null,
+          zoneId: input.zoneId ?? null,
           area: input.area ?? null,
           hostname: input.hostname ?? null,
           transport: input.transport,

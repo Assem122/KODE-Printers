@@ -72,12 +72,6 @@ export type MediaSize = (typeof MEDIA_SIZES)[number];
 export const SEVERITIES = ['info', 'warning', 'critical'] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
-export const QUOTA_SCOPES = ['user', 'department', 'site'] as const;
-export type QuotaScope = (typeof QUOTA_SCOPES)[number];
-
-export const QUOTA_PERIODS = ['daily', 'weekly', 'monthly'] as const;
-export type QuotaPeriod = (typeof QUOTA_PERIODS)[number];
-
 export const SCAN_STATUSES = ['unclaimed', 'claimed', 'archived'] as const;
 export type ScanStatus = (typeof SCAN_STATUSES)[number];
 
@@ -156,14 +150,11 @@ export const AUDIT_ACTIONS = [
   'printer.delete',
   'printer.probe',
   'printer.drain',
-  'site.create',
-  'site.update',
+  'zone.create',
+  'zone.update',
   'collector.create',
   'collector.revoke',
   'settings.update',
-  'quota.create',
-  'quota.update',
-  'quota.delete',
   'template.create',
   'template.update',
   'template.delete',

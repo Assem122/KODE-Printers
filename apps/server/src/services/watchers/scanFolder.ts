@@ -244,7 +244,7 @@ async function ingest(
   const scan = await scansModel.insert(pool, {
     printerId: printer.id,
     printerNameSnapshot: printer.name,
-    siteId: printer.siteId,
+    zoneId: printer.zoneId,
     originalFilename,
     storedFilename,
     sizeBytes,

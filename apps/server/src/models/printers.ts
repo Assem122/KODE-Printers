@@ -34,9 +34,9 @@ const EMPTY_CAPABILITIES: PrinterCapabilities = {
 
 interface PrinterRow {
   id: number;
-  site_id: number | null;
-  site_name: string | null;
-  site_code: string | null;
+  zone_id: number | null;
+  zone_label: string | null;
+  zone_code: string | null;
   collector_id: number | null;
   name: string;
   serial_number: string | null;
@@ -73,7 +73,7 @@ interface PrinterRow {
  * query's result set, so it cannot be logged by accident.
  */
 const PRINTER_SELECT = `
-  SELECT p.id, p.site_id, s.name AS site_name, s.code AS site_code, p.collector_id,
+  SELECT p.id, p.zone_id, z.label AS zone_label, z.code AS zone_code, p.collector_id,
          p.name, p.serial_number, p.mac_address::text AS mac_address, p.hostname,
          host(p.ip_address) AS ip_address, p.area, p.vendor, p.model,
          p.transport, p.ipp_uri, p.capabilities, p.capabilities_probed_at,
@@ -128,16 +128,16 @@ const PRINTER_SELECT = `
            '[]'::json
          ) AS supplies
     FROM printers p
-    LEFT JOIN sites s ON s.id = p.site_id
+    LEFT JOIN zones z ON z.id = p.zone_id
 `;
 
 function toPrinter(row: PrinterRow): Printer {
   const capabilities = { ...EMPTY_CAPABILITIES, ...(row.capabilities ?? {}) };
   return {
     id: row.id,
-    siteId: row.site_id,
-    siteName: row.site_name,
-    siteCode: row.site_code,
+    zoneId: row.zone_id,
+    zoneLabel: row.zone_label,
+    zoneCode: row.zone_code,
     collectorId: row.collector_id,
     name: row.name,
     serialNumber: row.serial_number,
@@ -173,7 +173,7 @@ function toPrinter(row: PrinterRow): Printer {
 }
 
 export interface PrinterFilter {
-  siteId?: number | undefined;
+  zoneId?: number | undefined;
   status?: PrinterStatus | undefined;
   search?: string | undefined;
   includeInactive?: boolean | undefined;
@@ -186,7 +186,7 @@ export interface PrinterFilter {
 export async function listPrinters(db: Db, filter: PrinterFilter): Promise<Paginated<Printer>> {
   const where = new WhereBuilder();
   if (!filter.includeInactive) where.add('p.is_active');
-  where.addIf(filter.siteId, 'p.site_id = ?', filter.siteId);
+  where.addIf(filter.zoneId, 'p.zone_id = ?', filter.zoneId);
   where.addIf(filter.status, 'p.status = ?', filter.status);
   if (filter.search) {
     where.add(
@@ -256,7 +256,7 @@ export interface PrinterWithSecrets {
   name: string;
   ipAddress: string;
   hostname: string | null;
-  siteId: number | null;
+  zoneId: number | null;
   collectorId: number | null;
   transport: TransportPreference;
   ippUri: string | null;
@@ -288,7 +288,7 @@ interface SecretRow {
   name: string;
   ip_address: string;
   hostname: string | null;
-  site_id: number | null;
+  zone_id: number | null;
   collector_id: number | null;
   transport: TransportPreference;
   ipp_uri: string | null;
@@ -316,7 +316,7 @@ interface SecretRow {
 }
 
 const SECRET_SELECT = `
-  SELECT id, name, host(ip_address) AS ip_address, hostname, site_id, collector_id,
+  SELECT id, name, host(ip_address) AS ip_address, hostname, zone_id, collector_id,
          transport, ipp_uri, capabilities, snmp_version, snmp_community, snmp_username,
          snmp_auth_key, snmp_priv_key, snmp_page_oid, snmp_print_oid, snmp_copy_oid,
          serial_number, last_page_count, last_print_count, last_copy_count,
@@ -330,7 +330,7 @@ const toSecret = (row: SecretRow): PrinterWithSecrets => ({
   name: row.name,
   ipAddress: row.ip_address,
   hostname: row.hostname,
-  siteId: row.site_id,
+  zoneId: row.zone_id,
   collectorId: row.collector_id,
   transport: row.transport,
   ippUri: row.ipp_uri,
@@ -420,7 +420,7 @@ export async function listScanWatchTargets(
 export interface PrinterInsert {
   name: string;
   ipAddress: string;
-  siteId: number | null;
+  zoneId: number | null;
   area: string | null;
   hostname: string | null;
   transport: TransportPreference;
@@ -439,7 +439,7 @@ export interface PrinterInsert {
 
 export async function insertPrinter(db: Db, input: PrinterInsert): Promise<Printer> {
   const { rows } = await db.query<{ id: number }>(
-    `INSERT INTO printers (name, ip_address, site_id, area, hostname, transport, ipp_uri,
+    `INSERT INTO printers (name, ip_address, zone_id, area, hostname, transport, ipp_uri,
                            snmp_version, snmp_community, snmp_username, snmp_auth_key,
                            snmp_priv_key, snmp_page_oid, snmp_print_oid, snmp_copy_oid,
                            scan_folder, max_job_impressions)
@@ -448,7 +448,7 @@ export async function insertPrinter(db: Db, input: PrinterInsert): Promise<Print
     [
       input.name,
       input.ipAddress,
-      input.siteId,
+      input.zoneId,
       input.area,
       input.hostname,
       input.transport,
@@ -475,7 +475,7 @@ export async function insertPrinter(db: Db, input: PrinterInsert): Promise<Print
 const UPDATABLE: Readonly<Record<string, { column: string; cast?: string }>> = {
   name: { column: 'name' },
   ipAddress: { column: 'ip_address', cast: '::inet' },
-  siteId: { column: 'site_id' },
+  zoneId: { column: 'zone_id' },
   area: { column: 'area' },
   hostname: { column: 'hostname' },
   transport: { column: 'transport' },
@@ -579,7 +579,7 @@ export async function recordCounters(
 export interface CounterBaseline {
   id: number;
   name: string;
-  siteId: number | null;
+  zoneId: number | null;
   life: number | null;
   print: number | null;
   copy: number | null;
@@ -591,13 +591,13 @@ export async function counterBaseline(db: Db, id: number): Promise<CounterBaseli
   const { rows } = await db.query<{
     id: number;
     name: string;
-    site_id: number | null;
+    zone_id: number | null;
     last_page_count: number | null;
     last_print_count: number | null;
     last_copy_count: number | null;
     last_page_count_at: string | null;
   }>(
-    `SELECT id, name, site_id, last_page_count, last_print_count, last_copy_count,
+    `SELECT id, name, zone_id, last_page_count, last_print_count, last_copy_count,
             last_page_count_at
        FROM printers WHERE id = $1 AND is_active`,
     [id],
@@ -607,7 +607,7 @@ export async function counterBaseline(db: Db, id: number): Promise<CounterBaseli
   return {
     id: row.id,
     name: row.name,
-    siteId: row.site_id,
+    zoneId: row.zone_id,
     life: row.last_page_count,
     print: row.last_print_count,
     copy: row.last_copy_count,

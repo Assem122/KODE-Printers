@@ -21,7 +21,7 @@ interface ScanRow {
   id: number;
   printer_id: number | null;
   printer_name_snapshot: string;
-  site_id: number | null;
+  zone_id: number | null;
   user_id: number | null;
   username_snapshot: string | null;
   status: ScanStatus;
@@ -40,7 +40,7 @@ const toScan = (row: ScanRow): Scan => ({
   id: row.id,
   printerId: row.printer_id,
   printerNameSnapshot: row.printer_name_snapshot,
-  siteId: row.site_id,
+  zoneId: row.zone_id,
   userId: row.user_id,
   usernameSnapshot: row.username_snapshot,
   status: row.status,
@@ -56,7 +56,7 @@ const toScan = (row: ScanRow): Scan => ({
 });
 
 const COLUMNS = `
-  s.id, s.printer_id, s.printer_name_snapshot, s.site_id, s.user_id, s.username_snapshot,
+  s.id, s.printer_id, s.printer_name_snapshot, s.zone_id, s.user_id, s.username_snapshot,
   s.status, s.original_filename, s.stored_filename, s.size_bytes, s.page_count,
   s.content_type, s.claimed_via, s.scanned_at, s.claimed_at, s.created_at
 `;
@@ -64,7 +64,7 @@ const COLUMNS = `
 export interface ScanInsert {
   printerId: number | null;
   printerNameSnapshot: string;
-  siteId: number | null;
+  zoneId: number | null;
   originalFilename: string;
   storedFilename: string;
   sizeBytes: number;
@@ -83,7 +83,7 @@ export interface ScanInsert {
  */
 export async function insertScan(db: Db, input: ScanInsert): Promise<Scan | null> {
   const { rows } = await db.query<ScanRow>(
-    `INSERT INTO scans (printer_id, printer_name_snapshot, site_id, original_filename,
+    `INSERT INTO scans (printer_id, printer_name_snapshot, zone_id, original_filename,
                         stored_filename, size_bytes, page_count, content_type, file_hash, scanned_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      ON CONFLICT (printer_id, original_filename, size_bytes, scanned_at) DO NOTHING
@@ -91,7 +91,7 @@ export async function insertScan(db: Db, input: ScanInsert): Promise<Scan | null
     [
       input.printerId,
       input.printerNameSnapshot,
-      input.siteId,
+      input.zoneId,
       input.originalFilename,
       input.storedFilename,
       input.sizeBytes,

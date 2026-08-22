@@ -5,8 +5,6 @@ import type {
   JobType,
   MediaSize,
   PrinterStatus,
-  QuotaPeriod,
-  QuotaScope,
   Role,
   ScanStatus,
   Severity,
@@ -29,17 +27,15 @@ import type {
 /** ISO-8601 UTC. INV-10: local time exists only in the presentation layer. */
 export type IsoTimestamp = string;
 
-export interface Site {
+export interface Zone {
   id: number;
-  /** Short token used in reports: MAIN, CLUB, ACAD. */
+  /** Short token used in reports: RECEP, POOL, ACAD. */
   code: string;
-  name: string;
-  address: string | null;
+  label: string;
   isActive: boolean;
-  /** Denormalised for the site picker; absent on write paths. */
+  /** Denormalised for the zone picker; absent on write paths. */
   printerCount?: number;
   createdAt: IsoTimestamp;
-  updatedAt: IsoTimestamp;
 }
 
 /**
@@ -76,9 +72,9 @@ export interface PrinterCapabilities {
 
 export interface Printer {
   id: number;
-  siteId: number | null;
-  siteName: string | null;
-  siteCode: string | null;
+  zoneId: number | null;
+  zoneLabel: string | null;
+  zoneCode: string | null;
   collectorId: number | null;
   name: string;
   /** Identity anchor. ADR-006. Null on devices that expose no serial. */
@@ -143,6 +139,12 @@ export interface User {
   role: Role;
   /** Reporting only. INV-01: this MUST NOT influence access. */
   department: string | null;
+  /**
+   * Reporting / default-printer-picker hint only. Same INV-01 guarantee as
+   * department: this MUST NOT influence access or what a user is permitted
+   * to print to.
+   */
+  zoneId: number | null;
   /** 'local' or an external provider id once AD is wired in. */
   authProvider: string;
   mustChangePassword: boolean;
@@ -172,7 +174,7 @@ export interface PrintOptions {
 export interface Job {
   id: number;
   printerId: number | null;
-  siteId: number | null;
+  zoneId: number | null;
   userId: number | null;
   /** INV-06 — the record stays readable after the user or printer is removed. */
   usernameSnapshot: string;
@@ -205,7 +207,7 @@ export interface Scan {
   id: number;
   printerId: number | null;
   printerNameSnapshot: string;
-  siteId: number | null;
+  zoneId: number | null;
   /** Set once claimed, or auto-assigned by a scan-to-me reservation. */
   userId: number | null;
   usernameSnapshot: string | null;
@@ -249,18 +251,6 @@ export interface AuditEntry {
   createdAt: IsoTimestamp;
 }
 
-export interface Quota {
-  id: number;
-  scope: QuotaScope;
-  scopeRef: string;
-  period: QuotaPeriod;
-  pageLimit: number;
-  enforce: boolean;
-  /** Current period consumption, filled by the read path. */
-  usedPages?: number;
-  createdAt: IsoTimestamp;
-}
-
 export interface PrintTemplate {
   id: number;
   name: string;
@@ -269,7 +259,7 @@ export interface PrintTemplate {
   originalFilename: string;
   pageCount: number | null;
   defaultOptions: Partial<PrintOptions>;
-  siteId: number | null;
+  zoneId: number | null;
   isActive: boolean;
   timesUsed: number;
   createdAt: IsoTimestamp;
@@ -278,7 +268,7 @@ export interface PrintTemplate {
 export interface Collector {
   id: number;
   name: string;
-  siteId: number | null;
+  zoneId: number | null;
   version: string | null;
   lastSeenAt: IsoTimestamp | null;
   isActive: boolean;
@@ -293,8 +283,6 @@ export interface AppSettings {
   uploadRetentionDays: number;
   scanRetentionDays: number;
   notificationRetentionDays: number;
-  /** DEC-05 — off by default so consumption is visible before it is restricted. */
-  quotaEnforcementEnabled: boolean;
   /** Refuse any single job above this many impressions. Printer safety. */
   maxJobImpressions: number;
   /** Warn the user above this before they can confirm. */

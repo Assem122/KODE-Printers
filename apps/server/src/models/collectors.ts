@@ -6,7 +6,7 @@ import type { Db } from '../db/pool.js';
 interface CollectorRow {
   id: number;
   name: string;
-  site_id: number | null;
+  zone_id: number | null;
   version: string | null;
   last_seen_at: string | null;
   is_active: boolean;
@@ -19,7 +19,7 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const toCollector = (row: CollectorRow): Collector => ({
   id: row.id,
   name: row.name,
-  siteId: row.site_id,
+  zoneId: row.zone_id,
   version: row.version,
   lastSeenAt: row.last_seen_at,
   isActive: row.is_active,
@@ -32,7 +32,7 @@ const toCollector = (row: CollectorRow): Collector => ({
 });
 
 const SELECT = `
-  SELECT id, name, site_id, version, last_seen_at, is_active, created_at,
+  SELECT id, name, zone_id, version, last_seen_at, is_active, created_at,
          ${HEARTBEAT_INTERVAL_MS} AS heartbeat_ms
     FROM collectors
 `;
@@ -44,14 +44,14 @@ export async function listCollectors(db: Db): Promise<Collector[]> {
 
 export async function insertCollector(
   db: Db,
-  input: { name: string; siteId: number; apiKeyHash: string; apiKeyPrefix: string },
+  input: { name: string; zoneId: number; apiKeyHash: string; apiKeyPrefix: string },
 ): Promise<Collector> {
   const { rows } = await db.query<CollectorRow>(
-    `INSERT INTO collectors (name, site_id, api_key_hash, api_key_prefix)
+    `INSERT INTO collectors (name, zone_id, api_key_hash, api_key_prefix)
      VALUES ($1,$2,$3,$4)
-     RETURNING id, name, site_id, version, last_seen_at, is_active, created_at,
+     RETURNING id, name, zone_id, version, last_seen_at, is_active, created_at,
                ${HEARTBEAT_INTERVAL_MS} AS heartbeat_ms`,
-    [input.name, input.siteId, input.apiKeyHash, input.apiKeyPrefix],
+    [input.name, input.zoneId, input.apiKeyHash, input.apiKeyPrefix],
   );
   const row = rows[0];
   if (!row) throw new Error('collector insert returned no row');

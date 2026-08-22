@@ -577,12 +577,12 @@ function PrinterPicker({
   selectedId: number | null;
   onSelect: (id: number) => void;
 }): ReactElement {
-  // Grouped by site, because "which printer is near me" is the question being
+  // Grouped by zone, because "which printer is near me" is the question being
   // answered and a flat list of fifty names answers nothing.
-  const bySite = useMemo(() => {
+  const byZone = useMemo(() => {
     const groups = new Map<string, Printer[]>();
     for (const printer of printers) {
-      const key = printer.siteName ?? 'Unassigned';
+      const key = printer.zoneLabel ?? 'Unassigned';
       const bucket = groups.get(key);
       if (bucket) bucket.push(printer);
       else groups.set(key, [printer]);
@@ -592,10 +592,10 @@ function PrinterPicker({
 
   return (
     <div className="stack" style={{ gap: 'var(--space-5)' }}>
-      {bySite.map(([site, group]) => (
-        <div key={site}>
+      {byZone.map(([zone, group]) => (
+        <div key={zone}>
           <div className="kode-eyebrow" style={{ marginBottom: 'var(--space-3)' }}>
-            {site}
+            {zone}
           </div>
           <div className="stack" style={{ gap: 'var(--space-2)' }}>
             {group.map((printer) => {

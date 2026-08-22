@@ -307,7 +307,7 @@ jobsRouter.post(
       async (tx) =>
         jobsModel.insert(tx, {
           printerId: printer.id,
-          siteId: printer.siteId,
+          zoneId: printer.zoneId,
           userId: 'id' in owner ? owner.id : null,
           usernameSnapshot: owner.username,
           printerNameSnapshot: printer.name,

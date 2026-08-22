@@ -66,7 +66,7 @@ collectorsRouter.post(
       async (tx) =>
         collectorsModel.insert(tx, {
           name: input.name,
-          siteId: input.siteId,
+          zoneId: input.zoneId,
           apiKeyHash: hash,
           apiKeyPrefix: prefix,
         }),

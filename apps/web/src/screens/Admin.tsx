@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AppSettings, AuditEntry, Paginated, Printer, Site, User } from '@kode/shared';
+import type { AppSettings, AuditEntry, Paginated, Printer, Zone, User } from '@kode/shared';
 import { api, ApiError, qs } from '../lib/api.js';
 import {
   Badge,
@@ -42,7 +42,7 @@ export function Admin(): ReactElement {
         {[
           { to: 'printers', label: 'Printers' },
           { to: 'users', label: 'People' },
-          { to: 'sites', label: 'Sites' },
+          { to: 'zones', label: 'Zones' },
           { to: 'settings', label: 'Settings' },
           { to: 'audit', label: 'Audit log' },
         ].map((tab) => (
@@ -60,7 +60,7 @@ export function Admin(): ReactElement {
         <Route index element={<Navigate to="printers" replace />} />
         <Route path="printers" element={<AdminPrinters />} />
         <Route path="users" element={<AdminUsers />} />
-        <Route path="sites" element={<AdminSites />} />
+        <Route path="zones" element={<AdminZones />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="audit" element={<AdminAudit />} />
       </Routes>
@@ -80,9 +80,9 @@ function AdminPrinters(): ReactElement {
     queryFn: () => api.get<Paginated<Printer>>('/printers?limit=200&includeInactive=true'),
   });
 
-  const { data: sites } = useQuery({
-    queryKey: ['sites'],
-    queryFn: () => api.get<Site[]>('/sites'),
+  const { data: zones } = useQuery({
+    queryKey: ['zones'],
+    queryFn: () => api.get<Zone[]>('/zones'),
   });
 
   const mutate = useMutation({
@@ -133,7 +133,7 @@ function AdminPrinters(): ReactElement {
             <thead>
               <tr>
                 <th>Printer</th>
-                <th>Site / area</th>
+                <th>Zone / area</th>
                 <th>Address</th>
                 <th>Transport</th>
                 <th>Tracking</th>
@@ -152,7 +152,7 @@ function AdminPrinters(): ReactElement {
                     </div>
                   </td>
                   <td>
-                    {printer.siteName ?? '—'}
+                    {printer.zoneLabel ?? '—'}
                     {printer.area ? <span className="dim"> · {printer.area}</span> : null}
                   </td>
                   <td className="mono">{printer.ipAddress}</td>
@@ -227,7 +227,7 @@ function AdminPrinters(): ReactElement {
         </div>
       )}
 
-      <AddPrinterModal open={adding} onClose={() => setAdding(false)} sites={sites ?? []} />
+      <AddPrinterModal open={adding} onClose={() => setAdding(false)} zones={zones ?? []} />
     </>
   );
 }
@@ -235,11 +235,11 @@ function AdminPrinters(): ReactElement {
 function AddPrinterModal({
   open,
   onClose,
-  sites,
+  zones,
 }: {
   open: boolean;
   onClose: () => void;
-  sites: readonly Site[];
+  zones: readonly Zone[];
 }): ReactElement {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -247,7 +247,7 @@ function AddPrinterModal({
   const [form, setForm] = useState({
     name: '',
     ipAddress: '',
-    siteId: '',
+    zoneId: '',
     area: '',
     snmpCommunity: 'public',
     scanFolder: '',
@@ -258,7 +258,7 @@ function AddPrinterModal({
       api.post<Printer>('/printers', {
         name: form.name,
         ipAddress: form.ipAddress,
-        siteId: form.siteId ? Number(form.siteId) : null,
+        zoneId: form.zoneId ? Number(form.zoneId) : null,
         area: form.area || null,
         snmpCommunity: form.snmpCommunity || null,
         scanFolder: form.scanFolder || null,
@@ -274,7 +274,7 @@ function AddPrinterModal({
       setForm({
         name: '',
         ipAddress: '',
-        siteId: '',
+        zoneId: '',
         area: '',
         snmpCommunity: 'public',
         scanFolder: '',
@@ -338,18 +338,18 @@ function AddPrinterModal({
           )}
         </Field>
 
-        <Field label="Site">
+        <Field label="Zone">
           {(id) => (
             <select
               id={id}
               className="select"
-              value={form.siteId}
-              onChange={(event) => setForm((f) => ({ ...f, siteId: event.target.value }))}
+              value={form.zoneId}
+              onChange={(event) => setForm((f) => ({ ...f, zoneId: event.target.value }))}
             >
               <option value="">Unassigned</option>
-              {sites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
+              {zones.map((zone) => (
+                <option key={zone.id} value={zone.id}>
+                  {zone.label}
                 </option>
               ))}
             </select>
@@ -579,7 +579,7 @@ function PermissionsModal({
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600 }}>{printer.name}</div>
               <div className="dim" style={{ fontSize: 'var(--text-xs)' }}>
-                {[printer.siteName, printer.area].filter(Boolean).join(' · ')}
+                {[printer.zoneLabel, printer.area].filter(Boolean).join(' · ')}
               </div>
             </div>
           </label>
@@ -589,19 +589,19 @@ function PermissionsModal({
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════ sites ══ */
+/* ══════════════════════════════════════════════════════════════════ zones ══ */
 
-function AdminSites(): ReactElement {
+function AdminZones(): ReactElement {
   const { data, isLoading } = useQuery({
-    queryKey: ['sites', 'admin'],
-    queryFn: () => api.get<Site[]>('/sites?includeInactive=true'),
+    queryKey: ['zones', 'admin'],
+    queryFn: () => api.get<Zone[]>('/zones?includeInactive=true'),
   });
 
   return (
     <>
-      <h2 className="section-title kode-slash">Sites</h2>
+      <h2 className="section-title kode-slash">Zones</h2>
       <Note>
-        One row per building. There is no floor field — every KODE building is single-storey, so a
+        One row per area. There is no floor field — every KODE building is single-storey, so a
         printer&apos;s <strong>area</strong> (Reception, Back office) is what actually helps someone
         find it.
       </Note>
@@ -610,23 +610,23 @@ function AdminSites(): ReactElement {
         <Skeleton height={200} />
       ) : (
         <div className="grid-cards" style={{ marginTop: 'var(--space-4)' }}>
-          {data?.map((site) => (
-            <Card key={site.id}>
+          {data?.map((zone) => (
+            <Card key={zone.id}>
               <div className="card__body">
                 <div className="row row--between">
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>{site.name}</div>
-                    <div className="kode-eyebrow">{site.code}</div>
+                    <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>{zone.label}</div>
+                    <div className="kode-eyebrow">{zone.code}</div>
                   </div>
-                  <Badge tone={site.isActive ? 'online' : 'default'}>
-                    {site.isActive ? 'active' : 'inactive'}
+                  <Badge tone={zone.isActive ? 'online' : 'default'}>
+                    {zone.isActive ? 'active' : 'inactive'}
                   </Badge>
                 </div>
                 <div
                   className="dim"
                   style={{ marginTop: 'var(--space-3)', fontSize: 'var(--text-sm)' }}
                 >
-                  {site.printerCount ?? 0} printer{site.printerCount === 1 ? '' : 's'}
+                  {zone.printerCount ?? 0} printer{zone.printerCount === 1 ? '' : 's'}
                 </div>
               </div>
             </Card>

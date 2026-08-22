@@ -19,28 +19,25 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;   -- gen_random_uuid()
 CREATE EXTENSION IF NOT EXISTS citext;     -- case-insensitive usernames
 
--- --------------------------------------------------------------------- sites
+-- --------------------------------------------------------------------- zones
 
-CREATE TABLE IF NOT EXISTS sites (
-  id          SERIAL PRIMARY KEY,
-  code        TEXT        NOT NULL UNIQUE,
-  name        TEXT        NOT NULL UNIQUE,
-  address     TEXT,
-  is_active   BOOLEAN     NOT NULL DEFAULT TRUE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT sites_code_format CHECK (code ~ '^[A-Z0-9-]{2,12}$')
+CREATE TABLE IF NOT EXISTS zones (
+  id         SERIAL PRIMARY KEY,
+  code       TEXT NOT NULL UNIQUE,   -- e.g. RECEP, ADMIN, POOL, ACAD
+  label      TEXT NOT NULL UNIQUE,   -- e.g. "Reception", "Pool Area"
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE sites IS
-  'One row per building or facility. code is the short token used in reports: MAIN, CLUB.';
+COMMENT ON TABLE zones IS
+  'One row per area/zone. code is the short token used in reports: RECEP, POOL.';
 
 -- ---------------------------------------------------------------- collectors
 
 CREATE TABLE IF NOT EXISTS collectors (
   id            SERIAL PRIMARY KEY,
   name          TEXT        NOT NULL UNIQUE,
-  site_id       INTEGER     REFERENCES sites(id) ON DELETE RESTRICT,
+  zone_id       INTEGER     REFERENCES zones(id) ON DELETE RESTRICT,
   -- Stored hashed and displayed exactly once, at creation. INV-08.
   api_key_hash  TEXT        NOT NULL,
   api_key_prefix TEXT       NOT NULL,
@@ -51,13 +48,13 @@ CREATE TABLE IF NOT EXISTS collectors (
   revoked_at    TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS collectors_site_idx ON collectors (site_id) WHERE is_active;
+CREATE INDEX IF NOT EXISTS collectors_zone_idx ON collectors (zone_id) WHERE is_active;
 
 -- ------------------------------------------------------------------ printers
 
 CREATE TABLE IF NOT EXISTS printers (
   id                      SERIAL PRIMARY KEY,
-  site_id                 INTEGER REFERENCES sites(id) ON DELETE RESTRICT,
+  zone_id                 INTEGER REFERENCES zones(id) ON DELETE RESTRICT,
   collector_id            INTEGER REFERENCES collectors(id) ON DELETE SET NULL,
   name                    TEXT        NOT NULL,
 
@@ -126,7 +123,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS printers_serial_uq
 CREATE UNIQUE INDEX IF NOT EXISTS printers_ip_active_uq
   ON printers (ip_address) WHERE is_active;
 
-CREATE INDEX IF NOT EXISTS printers_site_idx ON printers (site_id) WHERE is_active;
+CREATE INDEX IF NOT EXISTS printers_zone_idx ON printers (zone_id) WHERE is_active;
 CREATE INDEX IF NOT EXISTS printers_collector_idx ON printers (collector_id) WHERE is_active;
 
 -- --------------------------------------------------------- printer supplies
@@ -171,6 +168,10 @@ CREATE TABLE IF NOT EXISTS users (
   role                 TEXT        NOT NULL CHECK (role IN ('admin','user')),
   -- Reporting only. INV-01: this MUST NOT influence access.
   department           TEXT,
+  -- Reporting/default-printer-picker hint only. Same INV-01 guarantee as
+  -- department: this MUST NOT influence access or what a user is permitted
+  -- to print to.
+  zone_id              INTEGER     REFERENCES zones(id) ON DELETE SET NULL,
   must_change_password BOOLEAN     NOT NULL DEFAULT FALSE,
   failed_login_count   INTEGER     NOT NULL DEFAULT 0,
   first_failed_login_at TIMESTAMPTZ,
@@ -216,7 +217,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   -- build blocked hard deletion in the model layer only, which one bypassing
   -- route would defeat.
   printer_id             INTEGER REFERENCES printers(id) ON DELETE RESTRICT,
-  site_id                INTEGER REFERENCES sites(id)    ON DELETE SET NULL,
+  zone_id                INTEGER REFERENCES zones(id)    ON DELETE SET NULL,
   user_id                INTEGER REFERENCES users(id)    ON DELETE SET NULL,
 
   -- INV-06: the record stays readable after the user or printer record changes.
@@ -276,7 +277,7 @@ CREATE INDEX IF NOT EXISTS jobs_stuck_idx
 CREATE INDEX IF NOT EXISTS jobs_printer_created_idx ON jobs (printer_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS jobs_user_created_idx    ON jobs (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS jobs_created_idx         ON jobs (created_at DESC, id DESC);
-CREATE INDEX IF NOT EXISTS jobs_site_created_idx    ON jobs (site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS jobs_zone_created_idx    ON jobs (zone_id, created_at DESC);
 -- Supports the 60-second duplicate-submission check in §B10.5.
 CREATE INDEX IF NOT EXISTS jobs_dedupe_idx
   ON jobs (user_id, printer_id, file_hash, created_at DESC)
@@ -310,7 +311,7 @@ CREATE TABLE IF NOT EXISTS scans (
   id                    BIGSERIAL PRIMARY KEY,
   printer_id            INTEGER REFERENCES printers(id) ON DELETE SET NULL,
   printer_name_snapshot TEXT        NOT NULL,
-  site_id               INTEGER REFERENCES sites(id) ON DELETE SET NULL,
+  zone_id               INTEGER REFERENCES zones(id) ON DELETE SET NULL,
   user_id               INTEGER REFERENCES users(id) ON DELETE SET NULL,
   username_snapshot     TEXT,
   status                TEXT        NOT NULL DEFAULT 'unclaimed'
@@ -465,7 +466,7 @@ CREATE TABLE IF NOT EXISTS print_templates (
   file_hash         TEXT,
   page_count        INTEGER,
   default_options   JSONB       NOT NULL DEFAULT '{}'::jsonb,
-  site_id           INTEGER     REFERENCES sites(id) ON DELETE SET NULL,
+  zone_id           INTEGER     REFERENCES zones(id) ON DELETE SET NULL,
   created_by        INTEGER     REFERENCES users(id) ON DELETE SET NULL,
   is_active         BOOLEAN     NOT NULL DEFAULT TRUE,
   times_used        INTEGER     NOT NULL DEFAULT 0,
@@ -533,7 +534,7 @@ DO $$
 DECLARE
   target TEXT;
 BEGIN
-  FOREACH target IN ARRAY ARRAY['sites','printers','users','quotas','print_templates']
+  FOREACH target IN ARRAY ARRAY['zones','printers','users','quotas','print_templates']
   LOOP
     EXECUTE format(
       'DROP TRIGGER IF EXISTS %I ON %I', 'touch_' || target || '_updated_at', target);

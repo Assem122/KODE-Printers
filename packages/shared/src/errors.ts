@@ -34,7 +34,6 @@ export const ERROR_CODES = {
   PRINTER_INACTIVE: 409,
   PRINTER_HAS_HISTORY: 409,
   DUPLICATE_SUBMISSION: 409,
-  QUOTA_EXCEEDED: 409,
 
   // Printer-safety refusals (see services/transport/safety.ts)
   PRINTER_NOT_READY: 409,

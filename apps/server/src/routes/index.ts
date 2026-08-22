@@ -7,8 +7,8 @@ import { jobsRouter } from './jobs.js';
 import { auditRouter, notificationsRouter } from './notifications.js';
 import { printersRouter } from './printers.js';
 import { scansRouter } from './scans.js';
-import { quotasRouter, settingsRouter } from './settings.js';
-import { sitesRouter } from './sites.js';
+import { settingsRouter } from './settings.js';
+import { zonesRouter } from './zones.js';
 import { statsRouter } from './stats.js';
 import { streamRouter } from './stream.js';
 import { templatesRouter } from './templates.js';
@@ -32,7 +32,7 @@ apiRouter.use(setupLockdown);
 apiRouter.use('/health', healthRouter);
 apiRouter.use('/auth', authRouter);
 
-apiRouter.use('/sites', sitesRouter);
+apiRouter.use('/zones', zonesRouter);
 apiRouter.use('/printers', printersRouter);
 apiRouter.use('/jobs', jobsRouter);
 apiRouter.use('/scans', scansRouter);
@@ -42,7 +42,6 @@ apiRouter.use('/stats', statsRouter);
 apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/audit', auditRouter);
 apiRouter.use('/settings', settingsRouter);
-apiRouter.use('/quotas', quotasRouter);
 
 // Two distinct surfaces for collectors: `/collectors` is the admin's view and
 // takes a user session; `/collectors/agent` takes a collector API key. Keeping

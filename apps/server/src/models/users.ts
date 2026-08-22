@@ -17,6 +17,7 @@ interface UserRow {
   display_name: string | null;
   role: Role;
   department: string | null;
+  zone_id: number | null;
   auth_provider: string;
   must_change_password: boolean;
   locked_until: string | null;
@@ -30,7 +31,7 @@ interface UserRow {
 
 const USER_SELECT = `
   SELECT u.id, u.username::text AS username, u.email::text AS email, u.display_name,
-         u.role, u.department, u.auth_provider, u.must_change_password, u.locked_until,
+         u.role, u.department, u.zone_id, u.auth_provider, u.must_change_password, u.locked_until,
          u.last_login_at, u.is_active, u.is_system, u.created_at, u.updated_at,
          COALESCE(
            (SELECT array_agg(up.printer_id ORDER BY up.printer_id)
@@ -49,6 +50,7 @@ const toUser = (row: UserRow): User => ({
   displayName: row.display_name,
   role: row.role,
   department: row.department,
+  zoneId: row.zone_id,
   authProvider: row.auth_provider,
   mustChangePassword: row.must_change_password,
   lockedUntil: row.locked_until,
@@ -215,6 +217,7 @@ const UPDATABLE: Readonly<Record<string, string>> = {
   displayName: 'display_name',
   role: 'role',
   department: 'department',
+  zoneId: 'zone_id',
   isActive: 'is_active',
   mustChangePassword: 'must_change_password',
 };
