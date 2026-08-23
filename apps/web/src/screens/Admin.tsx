@@ -836,28 +836,6 @@ function AdminSettings(): ReactElement {
               </Field>
             </div>
           </Card>
-
-          <Card>
-            <div className="card__header">
-              <h3 className="card__title">Quotas</h3>
-            </div>
-            <div className="card__body stack">
-              <Switch
-                checked={value.quotaEnforcementEnabled}
-                onChange={(next) =>
-                  setDraft((current) => ({ ...current, quotaEnforcementEnabled: next }))
-                }
-                label="Enforce page quotas"
-                hint="Off means quotas are tracked and reported but never block a print."
-              />
-              {value.quotaEnforcementEnabled ? (
-                <Note severity="warning">
-                  With enforcement on, anyone over their allowance is refused at submission. Make
-                  sure the limits reflect what the club actually consumes before turning this on.
-                </Note>
-              ) : null}
-            </div>
-          </Card>
         </div>
       </div>
     </>

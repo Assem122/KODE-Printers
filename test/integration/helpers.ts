@@ -21,7 +21,7 @@ export interface TestContext {
   adminId: number;
   userId: number;
   systemUserId: number;
-  siteId: number;
+  zoneId: number;
   printerId: number;
 }
 
@@ -54,9 +54,9 @@ export async function resetDatabase(): Promise<TestContext> {
     TRUNCATE TABLE
       impression_ledger, notification_reads, notifications, push_subscriptions,
       scan_reservations, scans, jobs, user_printers, refresh_tokens,
-      collector_event_keys, print_templates, quotas,
+      collector_event_keys, print_templates,
       printer_supply_history, printer_supplies, printers, collectors,
-      users, sites
+      users, zones
     RESTART IDENTITY CASCADE
   `);
 
@@ -85,21 +85,21 @@ export async function resetDatabase(): Promise<TestContext> {
     [passwordHash],
   );
 
-  const { rows: site } = await pool.query<{ id: number }>(
-    `INSERT INTO sites (code, name) VALUES ('MAIN', 'Main Office') RETURNING id`,
+  const { rows: zone } = await pool.query<{ id: number }>(
+    `INSERT INTO zones (code, label) VALUES ('MAIN', 'Main Office') RETURNING id`,
   );
 
   const { rows: printer } = await pool.query<{ id: number }>(
-    `INSERT INTO printers (name, ip_address, site_id, area, snmp_community)
+    `INSERT INTO printers (name, ip_address, zone_id, area, snmp_community)
      VALUES ('Reception MFP', '10.20.3.14'::inet, $1, 'Reception', 'public') RETURNING id`,
-    [site[0]?.id],
+    [zone[0]?.id],
   );
 
   return {
     adminId: admin[0]?.id ?? 0,
     userId: user[0]?.id ?? 0,
     systemUserId: system[0]?.id ?? 0,
-    siteId: site[0]?.id ?? 0,
+    zoneId: zone[0]?.id ?? 0,
     printerId: printer[0]?.id ?? 0,
   };
 }
@@ -123,14 +123,14 @@ export async function insertTestJob(
   }> = {},
 ): Promise<number> {
   const { rows } = await pool.query<{ id: number }>(
-    `INSERT INTO jobs (printer_id, site_id, user_id, username_snapshot, printer_name_snapshot,
+    `INSERT INTO jobs (printer_id, zone_id, user_id, username_snapshot, printer_name_snapshot,
                        source, job_type, status, pages, copies, impressions,
                        locked_at, locked_by)
      VALUES ($1, $2, $3, 'testuser', 'Reception MFP', $4, $5, $6, $7, 1, $8, $9, $10)
      RETURNING id`,
     [
       context.printerId,
-      context.siteId,
+      context.zoneId,
       overrides.userId === undefined ? context.userId : overrides.userId,
       overrides.source ?? 'app',
       overrides.jobType ?? 'print',

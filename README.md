@@ -138,7 +138,7 @@ Each is recorded as a superseding ADR in [`docs/adr/`](docs/adr/).
 | 014 | No `printers.floor` column                       | Every KODE building is single-storey. `area` ("Reception", "Back office") is what helps someone find a printer.         |
 | 015 | PJL injection guard on the RAW path              | A `.txt` whose content is `@PJL DEFAULT PASSWORD=0` reconfigures the device. Any user who can print text could do this. |
 | 016 | Printer-safety gate                              | Impression ceilings, state gating, cooldown, circuit breaker. Not specified anywhere in the document.                   |
-| 017 | Scan hub, QR walk-up, templates, quotas UI       | The document scopes the backend only (DEC-08).                                                                          |
+| 017 | Scan hub, QR walk-up, templates, zones UI       | The document scopes the backend only (DEC-08).                                                                          |
 
 ### The PJL hole, specifically
 

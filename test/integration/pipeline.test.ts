@@ -206,10 +206,10 @@ suite('duplicate submission guard (§B10.5)', () => {
 
   it('catches the same file to the same printer inside the window', async () => {
     await pool.query(
-      `INSERT INTO jobs (printer_id, site_id, user_id, username_snapshot, printer_name_snapshot,
+      `INSERT INTO jobs (printer_id, zone_id, user_id, username_snapshot, printer_name_snapshot,
                          source, job_type, status, pages, copies, file_hash)
        VALUES ($1, $2, $3, 'testuser', 'Reception MFP', 'app', 'print', 'queued', 3, 1, 'abc123')`,
-      [context.printerId, context.siteId, context.userId],
+      [context.printerId, context.zoneId, context.userId],
     );
 
     const duplicate = await jobsModel.findRecentDuplicate(pool, {
@@ -224,11 +224,11 @@ suite('duplicate submission guard (§B10.5)', () => {
 
   it('does not catch the same file sent deliberately later', async () => {
     await pool.query(
-      `INSERT INTO jobs (printer_id, site_id, user_id, username_snapshot, printer_name_snapshot,
+      `INSERT INTO jobs (printer_id, zone_id, user_id, username_snapshot, printer_name_snapshot,
                          source, job_type, status, pages, copies, file_hash, created_at)
        VALUES ($1, $2, $3, 'testuser', 'Reception MFP', 'app', 'print', 'completed', 3, 1, 'abc123',
                now() - interval '10 minutes')`,
-      [context.printerId, context.siteId, context.userId],
+      [context.printerId, context.zoneId, context.userId],
     );
 
     // Printing the same form twice in a morning is normal. The guard is for

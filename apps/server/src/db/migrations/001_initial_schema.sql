@@ -6,7 +6,7 @@
 --   1. `printers.floor` is not created. Every KODE building is single-storey, so
 --      the column would be a guaranteed NULL that no report could group by.
 --      `area` replaces it and holds what people actually say: "Reception".
---   2. Additional tables exist for the scan hub, templates, quotas, push
+--   2. Additional tables exist for the scan hub, templates, push
 --      subscriptions and runtime settings, which §B4 does not cover because the
 --      document scopes the backend only (DEC-08).
 --
@@ -439,22 +439,6 @@ CREATE INDEX IF NOT EXISTS refresh_tokens_user_idx   ON refresh_tokens (user_id)
 CREATE INDEX IF NOT EXISTS refresh_tokens_family_idx ON refresh_tokens (family_id);
 CREATE INDEX IF NOT EXISTS refresh_tokens_expiry_idx ON refresh_tokens (expires_at);
 
--- -------------------------------------------------------------------- quotas
-
-CREATE TABLE IF NOT EXISTS quotas (
-  id          SERIAL PRIMARY KEY,
-  scope       TEXT    NOT NULL CHECK (scope IN ('user','department','site')),
-  scope_ref   TEXT    NOT NULL,
-  period      TEXT    NOT NULL CHECK (period IN ('daily','weekly','monthly')),
-  page_limit  INTEGER NOT NULL CHECK (page_limit > 0),
-  -- DEC-05: ships FALSE everywhere. Reporting first, so the club can see
-  -- consumption before deciding to restrict it.
-  enforce     BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (scope, scope_ref, period)
-);
-
 -- ----------------------------------------------------------------- templates
 
 CREATE TABLE IF NOT EXISTS print_templates (
@@ -484,7 +468,6 @@ CREATE TABLE IF NOT EXISTS app_settings (
   upload_retention_days       INTEGER NOT NULL DEFAULT 30 CHECK (upload_retention_days >= 0),
   scan_retention_days         INTEGER NOT NULL DEFAULT 90 CHECK (scan_retention_days > 0),
   notification_retention_days INTEGER NOT NULL DEFAULT 180 CHECK (notification_retention_days > 0),
-  quota_enforcement_enabled   BOOLEAN NOT NULL DEFAULT FALSE,
   max_job_impressions         INTEGER NOT NULL DEFAULT 2000 CHECK (max_job_impressions > 0),
   large_job_warn_impressions  INTEGER NOT NULL DEFAULT 100 CHECK (large_job_warn_impressions > 0),
   max_concurrent_jobs_per_printer INTEGER NOT NULL DEFAULT 1
@@ -534,7 +517,7 @@ DO $$
 DECLARE
   target TEXT;
 BEGIN
-  FOREACH target IN ARRAY ARRAY['zones','printers','users','quotas','print_templates']
+  FOREACH target IN ARRAY ARRAY['zones','printers','users','print_templates']
   LOOP
     EXECUTE format(
       'DROP TRIGGER IF EXISTS %I ON %I', 'touch_' || target || '_updated_at', target);
