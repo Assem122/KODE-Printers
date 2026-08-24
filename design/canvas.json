@@ -1,0 +1,77 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "Print composer" },
+    { "file": "LargeJob.dc.html", "x": 510, "y": 0, "w": 390, "h": 844, "title": "Large job — confirm" },
+    { "file": "JobStrip.dc.html", "x": 1020, "y": 0, "w": 390, "h": 844, "title": "Live job strip" },
+    { "file": "QrArrival.dc.html", "x": 0, "y": 1140, "w": 390, "h": 844, "title": "QR arrival" },
+    { "file": "Scans.dc.html", "x": 510, "y": 1140, "w": 390, "h": 844, "title": "Scan inbox" },
+    { "file": "Fleet.dc.html", "x": 1020, "y": 1140, "w": 390, "h": 844, "title": "Fleet board" },
+    { "file": "Offline.dc.html", "x": 1530, "y": 1140, "w": 390, "h": 844, "title": "Offline" }
+  ],
+  "annotations": [
+    {
+      "id": "row-print-path",
+      "x": 0,
+      "y": -300,
+      "w": 900,
+      "text": "THE PRINT PATH — at your desk\n\nAll three screens use the app's shipped tokens: Montserrat 800/900 display, #0b0e16 base, 16px card radii, gold #fec015 reserved for the one action that matters on a screen."
+    },
+    {
+      "id": "note-composer",
+      "x": 0,
+      "y": -150,
+      "w": 390,
+      "text": "Two entry points sit under the file, not behind it: Photograph (camera capture) and Share into app (a Web Share Target, so Android's share sheet lands here with the file attached).\n\nThe cost line sits directly above the button, so the number is read before the thumb moves."
+    },
+    {
+      "id": "note-largejob",
+      "x": 510,
+      "y": -150,
+      "w": 390,
+      "text": "The server already refuses once and asks for confirmLargeJob. A bottom sheet puts that decision in the thumb's reach; a centred dialog reads as an error.\n\nThe three figures are the ones people actually weigh: pages, sheets, money."
+    },
+    {
+      "id": "note-jobstrip",
+      "x": 1020,
+      "y": -150,
+      "w": 390,
+      "text": "Printing is asynchronous — the request returns before anything prints. The strip is pinned above the bottom bar and survives navigation, so the SSE stream becomes something you can watch rather than a background detail.\n\nIt is also where cancel lives."
+    },
+    {
+      "id": "row-at-device",
+      "x": 0,
+      "y": 900,
+      "w": 900,
+      "text": "AT THE DEVICE, AND WHEN THINGS ARE WRONG\n\nEvery caveat the API already returns is rendered beside the number, never behind a tooltip — a tooltip does not exist on a touchscreen."
+    },
+    {
+      "id": "note-qr",
+      "x": 0,
+      "y": 1010,
+      "w": 390,
+      "text": "Scanning the printer's sticker opens here. The device name is the largest thing on screen because the one question being answered is 'am I at the right machine'.\n\nToner and days-to-empty are shown before the actions, not after."
+    },
+    {
+      "id": "note-scans",
+      "x": 510,
+      "y": 1010,
+      "w": 390,
+      "text": "Scan-to-me as a countdown rather than a setting: reserve, walk over, scan. The timer is the whole explanation.\n\nUnclaimed scans on printers you may use are collectable below; anything already claimed by someone else never appears."
+    },
+    {
+      "id": "note-fleet",
+      "x": 1020,
+      "y": 1010,
+      "w": 390,
+      "text": "Blocking reasons in plain words — 'the paper tray is empty', not media-empty — and the broken printer sorts first.\n\nThe untracked device carries its coverage gap on the card, because a printer nobody can track looks exactly like a printer nobody uses."
+    },
+    {
+      "id": "note-offline",
+      "x": 1530,
+      "y": 1010,
+      "w": 390,
+      "text": "Status is deliberately never cached, so offline cannot pretend. The board goes grey, timestamps say when, and printing is disabled with a reason rather than failing on submit.\n\nThis needs the service worker actually registered — it currently is not."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

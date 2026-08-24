@@ -184,10 +184,11 @@ export interface SupplyReading {
  * nonsense that makes an operator ignore the dashboard.
  */
 export async function readSupplies(printer: PrinterWithSecrets): Promise<SupplyReading[]> {
-  const [descriptions, levels, capacities, colorants] = await Promise.all([
+  const [descriptions, levels, capacities, colorantIndexes, colorantValues] = await Promise.all([
     snmpWalk(printer, PRINTER_MIB.suppliesDescription),
     snmpWalk(printer, PRINTER_MIB.suppliesLevel),
     snmpWalk(printer, PRINTER_MIB.suppliesMaxCapacity),
+    snmpWalk(printer, PRINTER_MIB.suppliesColorantIndex),
     snmpWalk(printer, PRINTER_MIB.markerColorantValue),
   ]);
 
@@ -225,10 +226,24 @@ export async function readSupplies(printer: PrinterWithSecrets): Promise<SupplyR
     supply.maxLevel = value !== null && value > 0 ? value : null;
   }
 
-  for (const entry of colorants) {
+  /* Colorants take two reads and a join.
+   *
+   * The supplies table stores a *pointer* into the colorant table, not the
+   * colour itself, and a waste-toner or fuser unit points at 0 meaning "no
+   * colorant at all". Resolving the pointer is what makes a cyan cartridge say
+   * cyan instead of repeating its own description. */
+  const colorantByIndex = new Map<number, string>();
+  for (const entry of colorantValues) {
+    const value = asString(entry.value);
+    if (value !== null) colorantByIndex.set(indexOf(entry.oid), value);
+  }
+
+  for (const entry of colorantIndexes) {
     const supply = byIndex.get(indexOf(entry.oid));
     if (!supply) continue;
-    supply.colorant = asString(entry.value);
+    const colorantIndex = asInteger(entry.value);
+    if (colorantIndex === null || colorantIndex <= 0) continue;
+    supply.colorant = colorantByIndex.get(colorantIndex) ?? null;
   }
 
   return [...byIndex.values()].sort((a, b) => a.index - b.index);

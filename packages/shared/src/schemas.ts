@@ -99,6 +99,50 @@ export function isPrivateIpv4(value: string): boolean {
 }
 
 /**
+ * An IPP URI that can only address a printer on the club network.
+ *
+ * `privateIpv4Schema` confines `ipAddress` to RFC1918 as the A10/SSRF control
+ * from §B16.4, and the transport then dials `ippUri` instead whenever one is
+ * set — so validating only the address left the control with a way around it.
+ * The transport rewrites `ipp://` to `http://` and POSTs to it, which turns a
+ * printer record into a request forwarder aimed at anything the server can
+ * reach.
+ *
+ * The host must therefore be a private IPv4 literal here too. A hostname is
+ * refused rather than resolved: what a name resolves to at validation time is
+ * not what it resolves to at send time, and this schema also runs in a browser
+ * where there is nothing to resolve with.
+ */
+export const ippUriSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .regex(/^ipps?:\/\//i, 'An IPP URI starts with ipp:// or ipps://')
+  .refine((value) => ippUriHost(value) !== null, 'That is not a valid IPP URI.')
+  .refine(
+    (value) => isPrivateIpv4(ippUriHost(value) ?? ''),
+    'An IPP URI must address a printer by private IPv4 address, for example ipp://10.0.4.12/ipp/print.',
+  );
+
+/**
+ * The hostname inside an IPP URI, or null when it will not parse.
+ *
+ * Exported because the transport re-checks it immediately before dialling: a
+ * row written before this rule existed, or edited straight in the database,
+ * must not reach the socket either.
+ */
+export function ippUriHost(value: string): string | null {
+  try {
+    // `URL` does not know the ipp scheme well enough to expose a host, so it is
+    // swapped for one it does. The port and path are irrelevant to this check.
+    const url = new URL(value.replace(/^ipps:/i, 'https:').replace(/^ipp:/i, 'http:'));
+    return url.hostname === '' ? null : url.hostname.replace(/^\[|\]$/g, '');
+  } catch {
+    return null;
+  }
+}
+
+/**
  * A dotted OID. Validated because these values are read from the database and
  * handed to the SNMP layer; a malformed one should fail at the edge with a
  * clear message rather than deep inside a BER encoder.
@@ -189,13 +233,7 @@ export const printerCreateSchema = z.object({
   area: optionalTextSchema(120),
   hostname: optionalTextSchema(253),
   transport: z.enum(TRANSPORTS).default('auto'),
-  ippUri: z
-    .string()
-    .trim()
-    .max(500)
-    .regex(/^ipps?:\/\//i, 'An IPP URI starts with ipp:// or ipps://')
-    .nullable()
-    .optional(),
+  ippUri: ippUriSchema.nullable().optional(),
   snmpVersion: z.enum(SNMP_VERSIONS).default('2c'),
   /** Write-only. Never returned by any read path. INV-08. */
   snmpCommunity: z.string().max(200).nullable().optional(),

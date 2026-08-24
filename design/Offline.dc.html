@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap">
+  <style>
+    body { margin: 0; background: #0b0e16; }
+    a { color: #3a6fca; } a:hover { color: #2150a0; }
+    .k { font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif; }
+    .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #6e7a92; }
+    .navitem { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; color: #6e7a92; position: relative; }
+    .navitem--on { color: #3a6fca; }
+    .stale { border-radius: 16px; background: #11151f; border: 1px solid rgb(255 255 255 / 6%); padding: 14px; }
+  </style>
+</helmet>
+
+<div class="k" style="width: 390px; height: 844px; background: #0b0e16; color: #f2f5fa; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="flex-shrink: 0; padding: 12px 20px 0;">
+    <div style="border-radius: 12px; background: rgb(254 192 21 / 10%); border: 1px solid rgb(254 192 21 / 30%); padding: 12px 14px; display: flex; align-items: center; gap: 11px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fec015" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M2 2l20 20"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 3.2-2.1"/><path d="M15.8 10.8A10 10 0 0 1 19 12.9"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="M12 20h.01"/></svg>
+      <div>
+        <div style="font-size: 13px; font-weight: 800; color: #fec015;">You&rsquo;re offline</div>
+        <div style="font-size: 12px; color: #a8b3c7; margin-top: 2px;">Showing the last thing this phone saw.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 56px; display: flex; align-items: center; padding: 0 20px; flex-shrink: 0;">
+    <div style="font-size: 22px; font-weight: 900; letter-spacing: -0.03em;">Printers</div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; gap: 12px;">
+
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #6e7a92;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6e7a92" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      Last updated 14:32 &middot; 26 minutes ago
+    </div>
+
+    <div class="stale" style="opacity: 0.62;">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 9px; height: 9px; border-radius: 999px; background: #6e7a92; flex-shrink: 0; margin-top: 5px;"></div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div style="font-size: 15px; font-weight: 800; letter-spacing: -0.015em;">Reception</div>
+          <div style="font-size: 12px; color: #6e7a92; margin-top: 3px;">Was ready at 14:32</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stale" style="opacity: 0.62;">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 9px; height: 9px; border-radius: 999px; background: #6e7a92; flex-shrink: 0; margin-top: 5px;"></div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div style="font-size: 15px; font-weight: 800; letter-spacing: -0.015em;">Pool Area</div>
+          <div style="font-size: 12px; color: #6e7a92; margin-top: 3px;">Was low on cyan at 14:32</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 6px; padding: 16px; border-radius: 16px; background: #161b26; border: 1px dashed rgb(255 255 255 / 12%);">
+      <div style="display: flex; align-items: flex-start; gap: 11px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6e7a92" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <div style="font-size: 12px; color: #a8b3c7; line-height: 1.55;">Printer status is never cached. A printer that looked ready half an hour ago may be jammed now, so this list is history, not a live board.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="flex-shrink: 0; padding: 16px 20px calc(68px + 16px);">
+    <div style="height: 48px; border-radius: 10px; background: #1d2432; border: 1px solid rgb(255 255 255 / 8%); color: #6e7a92; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; font-weight: 800;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6e7a92" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      Printing needs a connection
+    </div>
+    <div style="text-align: center; font-size: 12px; color: #6e7a92; margin-top: 10px;">Your document is still here. It will send when you reconnect.</div>
+  </div>
+
+  <div style="position: absolute; inset-inline: 0; bottom: 0; height: 68px; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: rgb(17 21 31 / 92%); border-top: 1px solid rgb(255 255 255 / 6%);">
+    <div class="navitem">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+      Print
+    </div>
+    <div class="navitem navitem--on">
+      <div style="position: absolute; top: 0; width: 26px; height: 3px; border-radius: 0 0 999px 999px; background: linear-gradient(to right, #fec015, #3a6fca);"></div>
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><circle cx="7" cy="7.5" r="1"/></svg>
+      Printers
+    </div>
+    <div class="navitem">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M2 12h20"/></svg>
+      Scans
+    </div>
+    <div class="navitem">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      History
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

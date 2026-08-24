@@ -183,7 +183,7 @@ export async function send(db: Db, request: SendRequest): Promise<SendOutcome> {
       // Fall through to RAW below.
     }
   }
-const result = await sendRaw({
+  const result = await sendRaw({
     host: printer.ipAddress,
     document: request.document,
     contentType: request.contentType,

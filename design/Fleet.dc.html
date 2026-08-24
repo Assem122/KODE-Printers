@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap">
+  <style>
+    body { margin: 0; background: #0b0e16; }
+    a { color: #3a6fca; } a:hover { color: #2150a0; }
+    .k { font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif; }
+    .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #6e7a92; }
+    .navitem { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; color: #6e7a92; position: relative; }
+    .navitem--on { color: #3a6fca; }
+    .pcard { border-radius: 16px; background: #11151f; border: 1px solid rgb(255 255 255 / 6%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%); padding: 14px; }
+    .pname { font-size: 15px; font-weight: 800; letter-spacing: -0.015em; }
+    .pmeta { font-size: 12px; color: #6e7a92; margin-top: 3px; }
+    .bar { height: 5px; border-radius: 999px; background: #1d2432; overflow: hidden; flex-grow: 1; }
+  </style>
+</helmet>
+
+<div class="k" style="width: 390px; height: 844px; background: #0b0e16; color: #f2f5fa; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; flex-shrink: 0;">
+    <div style="font-size: 22px; font-weight: 900; letter-spacing: -0.03em;">Printers</div>
+    <div style="display: flex; gap: 8px;">
+      <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: rgb(22 185 121 / 12%); border: 1px solid rgb(22 185 121 / 30%); font-size: 12px; font-weight: 800; color: #16b979;">6</div>
+      <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: rgb(254 192 21 / 12%); border: 1px solid rgb(254 192 21 / 30%); font-size: 12px; font-weight: 800; color: #fec015;">1</div>
+      <div style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: rgb(240 82 109 / 12%); border: 1px solid rgb(240 82 109 / 30%); font-size: 12px; font-weight: 800; color: #f0526d;">1</div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 0 20px; overflow: hidden; display: flex; flex-direction: column; gap: 12px;">
+
+    <div class="pcard" style="border-color: rgb(240 82 109 / 34%);">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 9px; height: 9px; border-radius: 999px; background: #f0526d; flex-shrink: 0; margin-top: 5px; box-shadow: 0 0 0 4px rgb(240 82 109 / 18%);"></div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div class="pname">Academy office</div>
+          <div class="pmeta">Xerox VersaLink C405 &middot; Academy</div>
+        </div>
+      </div>
+      <div style="margin-top: 12px; padding: 11px 13px; border-radius: 12px; background: rgb(240 82 109 / 10%); border: 1px solid rgb(240 82 109 / 26%); display: flex; align-items: center; gap: 10px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#f0526d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <div style="font-size: 13px; font-weight: 700; color: #f2f5fa;">The paper tray is empty</div>
+      </div>
+    </div>
+
+    <div class="pcard">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 9px; height: 9px; border-radius: 999px; background: #16b979; flex-shrink: 0; margin-top: 5px; box-shadow: 0 0 0 4px rgb(22 185 121 / 18%);"></div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div class="pname">Reception</div>
+          <div class="pmeta">HP LaserJet M428fdw &middot; Main Office</div>
+        </div>
+        <div style="font-size: 12px; font-weight: 700; color: #6e7a92;">18 days</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-top: 13px;">
+        <div style="font-size: 11px; font-weight: 700; color: #6e7a92; width: 34px;">Black</div>
+        <div class="bar"><div style="width: 62%; height: 100%; background: #16b979;"></div></div>
+        <div style="font-size: 11px; font-weight: 800; width: 30px; text-align: right;">62%</div>
+      </div>
+    </div>
+
+    <div class="pcard">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 9px; height: 9px; border-radius: 999px; background: #fec015; flex-shrink: 0; margin-top: 5px; box-shadow: 0 0 0 4px rgb(254 192 21 / 18%);"></div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div class="pname">Pool Area</div>
+          <div class="pmeta">Brother MFC-L8690 &middot; Pool</div>
+        </div>
+        <div style="font-size: 12px; font-weight: 700; color: #fec015;">4 days</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-top: 13px;">
+        <div style="font-size: 11px; font-weight: 700; color: #6e7a92; width: 34px;">Cyan</div>
+        <div class="bar"><div style="width: 9%; height: 100%; background: #fec015;"></div></div>
+        <div style="font-size: 11px; font-weight: 800; width: 30px; text-align: right;">9%</div>
+      </div>
+    </div>
+
+    <div class="pcard" style="opacity: 0.82;">
+      <div style="display: flex; align-items: flex-start; gap: 12px;">
+        <div style="width: 9px; height: 9px; border-radius: 999px; background: #6e7a92; flex-shrink: 0; margin-top: 5px;"></div>
+        <div style="flex-grow: 1; min-width: 0;">
+          <div class="pname">Back office</div>
+          <div class="pmeta">Canon i-SENSYS &middot; Club House</div>
+        </div>
+      </div>
+      <div style="margin-top: 12px; padding: 11px 13px; border-radius: 12px; background: #161b26; border: 1px dashed rgb(255 255 255 / 12%); display: flex; align-items: flex-start; gap: 10px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6e7a92" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><path d="M2 2l20 20"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 3.2-2.1"/><path d="M15.8 10.8A10 10 0 0 1 19 12.9"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="M12 20h.01"/></svg>
+        <div style="font-size: 12px; color: #a8b3c7; line-height: 1.5;">SNMP is off, so walk-up use here is <strong style="color: #f2f5fa; font-weight: 700;">not counted</strong> in any report.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="position: absolute; inset-inline: 0; bottom: 0; height: 68px; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: rgb(17 21 31 / 92%); border-top: 1px solid rgb(255 255 255 / 6%);">
+    <div class="navitem">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+      Print
+    </div>
+    <div class="navitem navitem--on">
+      <div style="position: absolute; top: 0; width: 26px; height: 3px; border-radius: 0 0 999px 999px; background: linear-gradient(to right, #fec015, #3a6fca);"></div>
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><circle cx="7" cy="7.5" r="1"/></svg>
+      Printers
+    </div>
+    <div class="navitem">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M2 12h20"/></svg>
+      Scans
+    </div>
+    <div class="navitem">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      History
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

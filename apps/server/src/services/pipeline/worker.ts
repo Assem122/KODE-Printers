@@ -228,24 +228,24 @@ async function processJob(job: DequeuedJob): Promise<void> {
       printer.capabilities.formats.includes('application/pdf');
 
     if (!acceptsPdf) {
-  const converted = await stage(
-    'pdf-to-postscript',
-    content,
-    async () => {
-      const ps = await pdfToPostScript(content, job.id);
-      // تحقق إن الناتج PostScript حقيقي قبل ما نبعته
-      if (!ps.subarray(0, 2).toString('latin1').startsWith('%!')) {
-        throw new Error('Ghostscript produced invalid PostScript output');
+      const converted = await stage(
+        'pdf-to-postscript',
+        content,
+        async () => {
+          const ps = await pdfToPostScript(content, job.id);
+          // تحقق إن الناتج PostScript حقيقي قبل ما نبعته
+          if (!ps.subarray(0, 2).toString('latin1').startsWith('%!')) {
+            throw new Error('Ghostscript produced invalid PostScript output');
+          }
+          return ps;
+        },
+        degradations,
+      );
+      if (converted !== content) {
+        content = converted;
+        contentType = 'application/postscript';
       }
-      return ps;
-    },
-    degradations,
-  );
-  if (converted !== content) {
-    content = converted;
-    contentType = 'application/postscript';
-  }
-}
+    }
 
     /* Ledger before send ---------------------------------------------------
      * ADR-008: the entry must exist before the impressions can appear on the
@@ -276,6 +276,20 @@ async function processJob(job: DequeuedJob): Promise<void> {
       notes: degradations.length > 0 ? `Fell back at: ${degradations.join(', ')}` : null,
     });
 
+    /* `sent` becomes `completed` when the counter confirms the impressions —
+     * which never happens on a device nobody polls. Those jobs sat in `sent`
+     * forever: the queue was fine, but the history showed every job on an
+     * SNMP-less printer as permanently in flight, and its ledger entry hung
+     * around until it expired. Where there is no counter to reconcile against,
+     * the bytes leaving the machine is the most this system can ever know, so
+     * that is what the job is closed on. */
+    let finalJob = updated;
+    if (!countersWillReport(printer)) {
+      await ledgerModel.dropForJob(pool, job.id);
+      await jobsModel.markCompleted(pool, job.id, impressions);
+      finalJob = (await jobsModel.find(pool, job.id)) ?? updated;
+    }
+
     await printersModel.setStatus(
       pool,
       printer.id,
@@ -286,7 +300,7 @@ async function processJob(job: DequeuedJob): Promise<void> {
       },
     );
 
-    if (updated) events.jobUpdated(updated);
+    if (finalJob) events.jobUpdated(finalJob);
 
     log.info(
       {
@@ -319,6 +333,22 @@ async function processJob(job: DequeuedJob): Promise<void> {
     await ledgerModel.dropForJob(pool, job.id).catch(() => undefined);
     await handleFailure(job, error, printer.name);
   }
+}
+
+/**
+ * Whether this printer's page counter will ever confirm what it printed.
+ *
+ * The same test the fleet board shows as `walkupTrackingUnavailable`: SNMP
+ * switched off, or no credential configured to poll with. Kept beside its one
+ * caller because it decides a job's terminal state, not a display label.
+ */
+function countersWillReport(printer: {
+  snmpVersion: string;
+  snmpCommunity: string | null;
+  snmpUsername: string | null;
+}): boolean {
+  if (printer.snmpVersion === 'disabled') return false;
+  return printer.snmpCommunity !== null || printer.snmpUsername !== null;
 }
 
 /* ---------------------------------------------------------------- failure  */

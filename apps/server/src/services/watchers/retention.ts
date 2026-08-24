@@ -128,13 +128,15 @@ export async function sweep(): Promise<{
  * by treating any completed job as immediately eligible.
  */
 async function purgeUploads(retentionDays: number): Promise<number> {
-  const candidates = await jobsModel.listPurgeableFiles(pool, retentionDays);
+  const uploadDir = resolve(config.storage.uploadDir);
+  const candidates = await jobsModel.listPurgeableFiles(pool, retentionDays, uploadDir);
   let purged = 0;
 
   for (const candidate of candidates) {
     // Never delete outside the upload directory, whatever the stored path says.
-    // A path that escaped it is a bug worth surfacing, not one worth acting on.
-    if (!resolve(candidate.filePath).startsWith(resolve(config.storage.uploadDir))) {
+    // The query already excludes those; this is the check that makes it a
+    // guarantee rather than an assumption about how paths were written.
+    if (!resolve(candidate.filePath).startsWith(uploadDir)) {
       log.error({ jobId: candidate.id }, 'refusing to purge a file outside the upload directory');
       continue;
     }

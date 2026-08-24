@@ -37,6 +37,7 @@ export const authenticate: RequestHandler = asyncHandler(async (req, _res, next)
     username: user.username,
     role: user.role,
     department: user.department,
+    mustChangePassword: user.mustChangePassword,
   };
 
   enrichContext({ userId: user.id, username: user.username });
@@ -59,20 +60,26 @@ export const requireAdmin: RequestHandler = (req, _res, next) => {
  * UI: "An operational reminder is not a control." A client that skips the
  * password screen must still be unable to print.
  */
-export const requirePasswordChanged: RequestHandler = asyncHandler(async (req, _res, next) => {
+export const requirePasswordChanged: RequestHandler = (req, _res, next) => {
   if (!req.actor) {
     next();
     return;
   }
 
-  const credentials = await usersModel.findCredentialsById(pool, req.actor.id);
-  if (credentials?.mustChangePassword) {
-    throw new AppError('PASSWORD_CHANGE_REQUIRED', 'Choose a new password before continuing.', {
-      details: { changePasswordPath: '/api/auth/change-password' },
-    });
+  // Read from the record `authenticate` already loaded on this request. It used
+  // to re-query, which cost two further round trips on every authenticated call
+  // to re-read a column the middleware above had just selected — and gave the
+  // same answer, since both run inside one request.
+  if (req.actor.mustChangePassword) {
+    next(
+      new AppError('PASSWORD_CHANGE_REQUIRED', 'Choose a new password before continuing.', {
+        details: { changePasswordPath: '/api/auth/change-password' },
+      }),
+    );
+    return;
   }
   next();
-});
+};
 
 /**
  * Collector authentication (§B11.3).

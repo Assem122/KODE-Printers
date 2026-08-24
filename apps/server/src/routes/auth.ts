@@ -26,7 +26,16 @@ export const authRouter = Router();
  */
 const REFRESH_COOKIE = 'kode_refresh';
 
-function refreshCookieOptions(): {
+/**
+ * @param maxAgeSeconds Lifetime of the token this cookie carries.
+ *
+ * Taken from the issued token rather than from the remembered TTL. When it was
+ * the latter unconditionally, an ordinary sign-in got a thirty-day cookie
+ * wrapped around a seven-day token: the browser kept presenting something the
+ * server had already stopped honouring, so the session ended in a rejected
+ * refresh rather than by quietly expiring.
+ */
+function refreshCookieOptions(maxAgeSeconds: number): {
   httpOnly: true;
   secure: boolean;
   sameSite: 'strict';
@@ -40,7 +49,7 @@ function refreshCookieOptions(): {
     secure: config.isProduction,
     sameSite: 'strict',
     path: '/api/auth',
-    maxAge: auth.parseDuration(config.auth.refreshTtlRemembered) * 1000,
+    maxAge: maxAgeSeconds * 1000,
   };
 }
 
@@ -50,7 +59,7 @@ authRouter.post(
   validateBody(loginSchema),
   asyncHandler(async (req, res) => {
     const input = body(req, loginSchema);
-    const { result, refreshToken } = await auth.login(
+    const { result, refreshToken, refreshMaxAgeSeconds } = await auth.login(
       input.username,
       input.password,
       input.rememberMe,
@@ -61,7 +70,7 @@ authRouter.post(
       },
     );
 
-    res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+    res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(refreshMaxAgeSeconds));
     res.json(result);
   }),
 );
@@ -73,13 +82,13 @@ authRouter.post(
     if (!presented) throw errors.unauthenticated('Your session has expired. Sign in again.');
 
     try {
-      const { result, refreshToken } = await auth.refresh(presented, {
+      const { result, refreshToken, refreshMaxAgeSeconds } = await auth.refresh(presented, {
         ip: clientIp(req),
         userAgent: req.get('user-agent')?.slice(0, 300) ?? null,
         requestId: req.requestId,
       });
 
-      res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+      res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions(refreshMaxAgeSeconds));
       res.json(result);
     } catch (error) {
       // Clear the cookie on any refresh failure. Leaving a token the server has

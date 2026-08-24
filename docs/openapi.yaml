@@ -1,0 +1,1136 @@
+openapi: 3.1.0
+
+# The API contract. §B5 makes disagreement between this file and the implemented
+# routes a release blocker, which is why it lives beside the code and why
+# `npm run check:api` compares the two on every push.
+#
+# Scope note: this describes paths, methods and the shapes that cross the wire.
+# It does not restate the invariants — those live in the code they constrain.
+
+info:
+  title: KODE Printer API
+  version: 1.0.0
+  description: |
+    Central print, scan and audit for KODE Sports Club.
+
+    Every non-2xx body is the same envelope (`Error` below) and carries a
+    `requestId` that also appears in the `X-Request-Id` response header — it is
+    the join key between a user's complaint and the logs.
+
+    Lists are keyset-paginated: pass the `nextCursor` from the previous page as
+    `cursor`. Offset pagination is not offered at any endpoint.
+  license:
+    name: Internal, confidential — KODE Sports Club · Technology
+
+servers:
+  - url: /api
+
+tags:
+  - name: auth
+    description: Sign-in, token rotation, password change, push registration.
+  - name: printers
+    description: The fleet, and the print submission path.
+  - name: jobs
+    description: Job history, lifecycle actions and export.
+  - name: scans
+    description: The scan inbox and scan-to-me reservations.
+  - name: templates
+    description: Quick-print documents.
+  - name: users
+    description: Accounts and printer grants. Administrator only.
+  - name: zones
+    description: Areas of the club.
+  - name: stats
+    description: Reporting. Responses carry their own coverage caveats.
+  - name: notifications
+    description: Notification centre and the read-only audit log.
+  - name: settings
+    description: Runtime configuration.
+  - name: collectors
+    description: Site collectors — an admin surface and an agent surface.
+  - name: health
+    description: Liveness, readiness and metrics.
+  - name: stream
+    description: Server-sent events.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Liveness
+      description: Never touches the database — a database blip must not trigger a restart loop.
+      security: []
+      responses:
+        '200':
+          description: The process is running.
+
+  /health/ready:
+    get:
+      tags: [health]
+      summary: Readiness
+      description: Database, converters, storage, worker and queue depth. A failure means page someone, not restart.
+      security: []
+      responses:
+        '200':
+          description: Ready, possibly with warnings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessReport' }
+        '503':
+          description: At least one check failed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessReport' }
+
+  /health/metrics:
+    get:
+      tags: [health]
+      summary: Prometheus metrics
+      description: Refused from off-network source addresses in production.
+      security: []
+      responses:
+        '200':
+          description: Metrics in Prometheus text format.
+        '403':
+          description: Not reachable from this address.
+        '404':
+          description: Metrics are disabled.
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Sign in
+      description: |
+        Sets the refresh token as an httpOnly cookie; the access token is
+        returned in the body and is expected to live in memory only. The cookie's
+        lifetime matches the token's, so a session expires rather than failing.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                rememberMe: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Signed in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '401': { $ref: '#/components/responses/Error' }
+        '423': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate the refresh token
+      description: Presenting an already-rotated token revokes its whole family and raises a critical alert.
+      security: []
+      responses:
+        '200':
+          description: Rotated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: End this session
+      security: []
+      responses:
+        '204':
+          description: Ended.
+
+  /auth/logout-all:
+    post:
+      tags: [auth]
+      summary: End every session for the signed-in account
+      responses:
+        '200':
+          description: Count of sessions ended.
+
+  /auth/change-password:
+    post:
+      tags: [auth]
+      summary: Change your own password
+      description: The only route reachable while a password change is outstanding. Succeeding ends every session, including this one.
+      responses:
+        '200':
+          description: Changed; sign in again.
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: The signed-in account
+      responses:
+        '200':
+          description: The account, plus the Web Push public key when push is configured.
+
+  /auth/push-subscription:
+    post:
+      tags: [auth]
+      summary: Register a browser for Web Push
+      responses:
+        '204':
+          description: Stored.
+
+  /zones:
+    get:
+      tags: [zones]
+      summary: List zones
+      responses:
+        '200':
+          description: Zones.
+    post:
+      tags: [zones]
+      summary: Create a zone
+      responses:
+        '201':
+          description: Created.
+        '403': { $ref: '#/components/responses/Error' }
+
+  /zones/{id}:
+    put:
+      tags: [zones]
+      summary: Update a zone
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated.
+        '404': { $ref: '#/components/responses/Error' }
+
+  /printers:
+    get:
+      tags: [printers]
+      summary: List printers
+      description: Scoped to the caller's grants. Administrators see the whole fleet.
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: zoneId, in: query, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: string, enum: [online, offline, degraded, unknown] } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: includeInactive, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: A page of printers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrinterPage' }
+    post:
+      tags: [printers]
+      summary: Add a printer by IP address
+      description: |
+        Serial, vendor, model and capabilities are discovered by probe rather
+        than typed. The address must be a private IPv4, and so must the host of
+        any `ippUri` supplied with it.
+      responses:
+        '201':
+          description: Created; the probe runs out of band.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Printer' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /printers/{id}:
+    get:
+      tags: [printers]
+      summary: One printer
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: The printer.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Printer' }
+        '403': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [printers]
+      summary: Update a printer
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated.
+    delete:
+      tags: [printers]
+      summary: Delete a printer
+      description: Refused once the printer has job history — disable it instead, which keeps the record readable.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: Deleted.
+        '409': { $ref: '#/components/responses/Error' }
+
+  /printers/{id}/active:
+    put:
+      tags: [printers]
+      summary: Enable or disable a printer
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated.
+
+  /printers/{id}/drain:
+    put:
+      tags: [printers]
+      summary: Maintenance mode
+      description: Finish what is queued, accept nothing new. Distinct from disabling.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated.
+
+  /printers/{id}/probe:
+    post:
+      tags: [printers]
+      summary: Re-run the capability probe
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: The printer, with capabilities refreshed.
+
+  /printers/{id}/check-status:
+    post:
+      tags: [printers]
+      summary: Diagnostics
+      description: Port reachability on 631 and 9100, plus whether walk-up tracking is available at all.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Diagnostic report.
+
+  /printers/{id}/qr:
+    get:
+      tags: [printers]
+      summary: QR sticker for this printer
+      description: Scanning it opens the print page with this printer selected.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: An SVG.
+          content:
+            image/svg+xml:
+              schema: { type: string }
+
+  /printers/{id}/print-file:
+    post:
+      tags: [printers]
+      summary: Submit a print job
+      description: |
+        Returns 202: conversion and dispatch happen out of band and the outcome
+        arrives over `/stream`. A job above the warning threshold is refused once
+        with `requiresConfirmation` in the details; resubmit with
+        `confirmLargeJob` to proceed.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                options: { type: string, description: JSON-encoded print options. }
+                confirmLargeJob: { type: boolean }
+      responses:
+        '202':
+          description: Queued, or held for release at the device.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrintAccepted' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+
+  /jobs:
+    get:
+      tags: [jobs]
+      summary: Job history
+      description: A user sees their own jobs plus walk-up activity on printers they may use.
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: printerId, in: query, schema: { type: integer } }
+        - { name: zoneId, in: query, schema: { type: integer } }
+        - { name: userId, in: query, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: source, in: query, schema: { type: string, enum: [app, walkup, manual] } }
+        - { name: jobType, in: query, schema: { type: string, enum: [print, scan, copy, fax, unknown] } }
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of jobs.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JobPage' }
+    post:
+      tags: [jobs]
+      summary: Record activity the system could not observe
+      description: Administrator only. Exists so a coverage gap is closed deliberately and visibly rather than left as a hole.
+      responses:
+        '201':
+          description: Recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+
+  /jobs/export:
+    get:
+      tags: [jobs]
+      summary: Streaming CSV export
+      description: Requires an explicit range no wider than 366 days. The coverage caveats are written into the footer rows.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: CSV.
+          content:
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/Error' }
+
+  /jobs/{id}:
+    get:
+      tags: [jobs]
+      summary: One job
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: The job.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '403': { $ref: '#/components/responses/Error' }
+
+  /jobs/{id}/release:
+    post:
+      tags: [jobs]
+      summary: Release a held job
+      description: The hold-and-release path — press this standing at the device.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Queued.
+        '400': { $ref: '#/components/responses/Error' }
+
+  /jobs/{id}/retry:
+    post:
+      tags: [jobs]
+      summary: Retry a failed job
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Requeued.
+
+  /jobs/{id}/cancel:
+    post:
+      tags: [jobs]
+      summary: Cancel a queued or held job
+      description: A job already sent cannot be recalled; the bytes are at the device.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Cancelled.
+        '400': { $ref: '#/components/responses/Error' }
+
+  /scans:
+    get:
+      tags: [scans]
+      summary: The scan inbox
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: printerId, in: query, schema: { type: integer } }
+        - { name: status, in: query, schema: { type: string, enum: [unclaimed, claimed, archived] } }
+        - { name: mine, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: A page of scans.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanPage' }
+
+  /scans/reserve:
+    post:
+      tags: [scans]
+      summary: Scan-to-me
+      description: Claims the next scan from a printer. One live reservation per device — a second is refused rather than guessed at.
+      responses:
+        '201':
+          description: Reserved.
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /scans/reservation/{printerId}:
+    get:
+      tags: [scans]
+      summary: Who holds the reservation on a printer
+      parameters:
+        - { name: printerId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: The reservation, or null.
+        '403': { $ref: '#/components/responses/Error' }
+
+  /scans/{id}/file:
+    get:
+      tags: [scans]
+      summary: Download or preview a scan
+      description: Served inline so the app can preview it in place, under a locked-down CSP.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: The file.
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+  /scans/{id}/claim:
+    post:
+      tags: [scans]
+      summary: Claim a scan
+      description: Only an administrator may file a scan into someone else's inbox.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Claimed.
+        '403': { $ref: '#/components/responses/Error' }
+
+  /scans/{id}/archive:
+    post:
+      tags: [scans]
+      summary: Archive a scan
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: Archived.
+
+  /templates:
+    get:
+      tags: [templates]
+      summary: List quick-print templates
+      responses:
+        '200':
+          description: Templates.
+    post:
+      tags: [templates]
+      summary: Upload a template
+      responses:
+        '201':
+          description: Created.
+
+  /templates/{id}/print:
+    post:
+      tags: [templates]
+      summary: Print a template
+      description: Goes through the ordinary pipeline, so the safety gate, the ledger entry and the audit row all still happen.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '202':
+          description: Queued.
+
+  /templates/{id}:
+    delete:
+      tags: [templates]
+      summary: Delete a template
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: Deleted.
+
+  /users:
+    get:
+      tags: [users]
+      summary: List accounts
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: role, in: query, schema: { type: string, enum: [admin, user] } }
+        - { name: search, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of accounts.
+    post:
+      tags: [users]
+      summary: Create an account
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+
+  /users/{id}:
+    get:
+      tags: [users]
+      summary: One account
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: The account.
+    put:
+      tags: [users]
+      summary: Update an account
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated.
+        '409':
+          description: Refused — this is the only administrator.
+    delete:
+      tags: [users]
+      summary: Delete an account
+      description: Job history survives; the username was snapshotted when each job was created.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: Deleted.
+
+  /users/{id}/active:
+    put:
+      tags: [users]
+      summary: Enable or disable an account
+      description: Disabling ends that account's sessions immediately.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated.
+
+  /users/{id}/password:
+    put:
+      tags: [users]
+      summary: Set an account's password
+      description: Ends every session for that account.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Set.
+
+  /users/{id}/printers:
+    put:
+      tags: [users]
+      summary: Replace an account's printer grants
+      description: The only write path to printer permissions. The whole set is replaced, so the audit row holds before and after.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Updated.
+
+  /stats/summary:
+    get:
+      tags: [stats]
+      summary: Totals for a period
+      description: Carries `coverageNote` and `typeNote` when the figures are qualified.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, required: true, schema: { type: string } }
+        - { name: zoneId, in: query, schema: { type: integer } }
+        - { name: printerId, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Summary.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageSummary' }
+
+  /stats/series:
+    get:
+      tags: [stats]
+      summary: Bucketed time series
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, required: true, schema: { type: string } }
+        - { name: bucket, in: query, schema: { type: string, enum: [hour, day, week, month] } }
+      responses:
+        '200':
+          description: Points.
+
+  /stats/leaderboard:
+    get:
+      tags: [stats]
+      summary: Ranking by user, printer, zone or department
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, required: true, schema: { type: string } }
+        - { name: dimension, in: query, schema: { type: string, enum: [user, printer, zone, department] } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 50 } }
+      responses:
+        '200':
+          description: Rows.
+
+  /stats/overview:
+    get:
+      tags: [stats]
+      summary: The dashboard's opening view
+      description: Today, the last thirty days, a series and the top printers, in one request.
+      responses:
+        '200':
+          description: Overview.
+
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: The notification centre
+      description: Administrators see operational alerts plus their own; everyone else sees only their own.
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: severity, in: query, schema: { type: string, enum: [info, warning, critical] } }
+        - { name: unreadOnly, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: A page of notifications.
+
+  /notifications/unread-count:
+    get:
+      tags: [notifications]
+      summary: Unread count, for the badge
+      responses:
+        '200':
+          description: The count.
+
+  /notifications/{id}/read:
+    post:
+      tags: [notifications]
+      summary: Mark one notification read
+      description: Read state is per user, so one administrator does not hide an alert from another.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: Marked.
+
+  /notifications/read-all:
+    post:
+      tags: [notifications]
+      summary: Mark everything visible read
+      responses:
+        '200':
+          description: Count marked.
+
+  /audit:
+    get:
+      tags: [notifications]
+      summary: The audit log
+      description: |
+        Administrator only, and read-only. Rows are written inside the
+        transaction of the change they record, never through an API, and the
+        database refuses to update or delete them.
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: actorUserId, in: query, schema: { type: integer } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: entityType, in: query, schema: { type: string } }
+        - { name: entityId, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: A page of audit entries.
+
+  /audit/actions:
+    get:
+      tags: [notifications]
+      summary: Distinct actions present, for filter chips
+      responses:
+        '200':
+          description: Action names.
+
+  /settings:
+    get:
+      tags: [settings]
+      summary: Runtime settings
+      description: Readable by any signed-in account — the print composer needs the warning threshold and the currency.
+      responses:
+        '200':
+          description: Settings.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppSettings' }
+    put:
+      tags: [settings]
+      summary: Update settings
+      description: Administrator only. Every change writes an audit row with before and after.
+      responses:
+        '200':
+          description: Updated.
+
+  /collectors:
+    get:
+      tags: [collectors]
+      summary: List collectors
+      responses:
+        '200':
+          description: Collectors, with health derived from the heartbeat.
+    post:
+      tags: [collectors]
+      summary: Create a collector
+      description: The API key is shown exactly once. Only its hash is stored, so no route can retrieve it again.
+      responses:
+        '201':
+          description: Created, with the key.
+
+  /collectors/{id}/revoke:
+    post:
+      tags: [collectors]
+      summary: Revoke a collector key
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204':
+          description: Revoked.
+
+  /collectors/agent/heartbeat:
+    post:
+      tags: [collectors]
+      summary: Collector heartbeat
+      description: Carries reachability for a segment the central server cannot see, which makes the collector the only source of truth for it.
+      security: [{ collectorKey: [] }]
+      responses:
+        '200':
+          description: Acknowledged.
+
+  /collectors/agent/events:
+    post:
+      tags: [collectors]
+      summary: Collector event batch
+      description: Every event carries a collector-generated idempotency key, so a replay after a dropped uplink cannot double-log.
+      security: [{ collectorKey: [] }]
+      responses:
+        '200':
+          description: Accepted and duplicate counts.
+
+  /collectors/agent/printers:
+    get:
+      tags: [collectors]
+      summary: The printer roster for this collector
+      description: The one response that carries SNMP credentials, and the reason it is sent with Cache-Control no-store.
+      security: [{ collectorKey: [] }]
+      responses:
+        '200':
+          description: Printers assigned to this collector.
+
+  /collectors/agent/work:
+    get:
+      tags: [collectors]
+      summary: Work waiting for this collector
+      description: Always empty. Printing through a collector is not implemented; this is the seam that relay will use.
+      security: [{ collectorKey: [] }]
+      responses:
+        '200':
+          description: An empty job list, and printingSupported false.
+
+  /stream:
+    get:
+      tags: [stream]
+      summary: Server-sent events
+      description: |
+        Job, printer, scan, notification and queue-depth events, filtered
+        server-side to what the subscriber is entitled to see. The access token
+        travels as a `token` query parameter because EventSource cannot set
+        headers; query strings are stripped from every log line.
+      parameters:
+        - { name: token, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: An event stream.
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    collectorKey:
+      type: http
+      scheme: bearer
+      description: A per-collector API key. Never valid on an administrative route.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque keyset cursor from the previous page.
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+
+  responses:
+    Error:
+      description: The standard error envelope.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              description: Machine-readable code from the error taxonomy.
+            message:
+              type: string
+              description: Written for the person reading it, not for a log.
+            details:
+              type: object
+              additionalProperties: true
+              description: Never contains a stack trace, a SQL string or a secret.
+            requestId:
+              type: string
+
+    Page:
+      type: object
+      required: [items, hasMore, nextCursor]
+      properties:
+        items:
+          type: array
+          items: {}
+        hasMore: { type: boolean }
+        nextCursor:
+          type: [string, 'null']
+
+    Printer:
+      type: object
+      description: |
+        Carries no credentials. snmpConfigured reports whether one exists; the
+        value itself has no representation on this shape at all.
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        ipAddress: { type: string }
+        area: { type: [string, 'null'] }
+        zoneId: { type: [integer, 'null'] }
+        zoneLabel: { type: [string, 'null'] }
+        vendor: { type: [string, 'null'] }
+        model: { type: [string, 'null'] }
+        status: { type: string, enum: [online, offline, degraded, unknown] }
+        stateReasons:
+          type: array
+          items: { type: string }
+          description: IPP-style keywords such as media-empty, media-jam, device-mismatch.
+        transport: { type: string, enum: [auto, ipp, raw9100] }
+        capabilities:
+          type: object
+          additionalProperties: true
+          description: probedVia none means we asked and got no answer. Present those options as unverified rather than implying they take effect.
+        snmpConfigured: { type: boolean }
+        supplies:
+          type: array
+          items: { $ref: '#/components/schemas/PrinterSupply' }
+        isActive: { type: boolean }
+        isDraining: { type: boolean }
+        maxJobImpressions: { type: [integer, 'null'] }
+        walkupTrackingUnavailable:
+          type: boolean
+          description: True when this device reports no walk-up activity at all. Every report covering it must say so.
+
+    PrinterSupply:
+      type: object
+      properties:
+        name: { type: string }
+        colorant: { type: [string, 'null'] }
+        percent: { type: [number, 'null'] }
+        estimatedDaysRemaining:
+          type: [integer, 'null']
+          description: Withheld until the history supports it, rather than extrapolated from two readings.
+
+    PrinterPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Printer' }
+
+    Job:
+      type: object
+      properties:
+        id: { type: integer }
+        printerId: { type: [integer, 'null'] }
+        userId: { type: [integer, 'null'] }
+        usernameSnapshot:
+          type: string
+          description: Written when the job was created, so the record survives the account being deleted.
+        printerNameSnapshot: { type: string }
+        source: { type: string, enum: [app, walkup, manual] }
+        jobType:
+          type: string
+          enum: [print, scan, copy, fax, unknown]
+          description: unknown means the device has no vendor counter, so a print and a photocopy cannot be told apart. Label such activity; never count it as printing.
+        status: { type: string, enum: [queued, held, processing, sent, completed, failed, cancelled] }
+        pages: { type: integer }
+        copies: { type: integer }
+        impressions:
+          type: [integer, 'null']
+          description: Sides the engine marks. Duplex halves sheets, not impressions.
+        colorMode: { type: [string, 'null'] }
+        duplex: { type: [boolean, 'null'] }
+        documentName: { type: [string, 'null'] }
+        transportUsed: { type: [string, 'null'] }
+        errorCode: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        pageCountEstimated:
+          type: boolean
+          description: True when the count came from the byte-scan fallback. Show it as an estimate.
+        createdAt: { type: string }
+        completedAt: { type: [string, 'null'] }
+
+    JobPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Job' }
+
+    Scan:
+      type: object
+      properties:
+        id: { type: integer }
+        printerId: { type: [integer, 'null'] }
+        printerNameSnapshot: { type: string }
+        userId: { type: [integer, 'null'] }
+        status: { type: string, enum: [unclaimed, claimed, archived] }
+        originalFilename: { type: string }
+        sizeBytes: { type: integer }
+        pageCount: { type: [integer, 'null'] }
+        contentType: { type: string }
+        claimedVia:
+          type: [string, 'null']
+          description: How the owner was determined - matched by a reservation, or asserted by a person.
+        scannedAt: { type: string }
+
+    ScanPage:
+      allOf:
+        - $ref: '#/components/schemas/Page'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Scan' }
+
+    User:
+      type: object
+      description: No password field exists on this shape, in either direction.
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: [string, 'null'] }
+        displayName: { type: [string, 'null'] }
+        role: { type: string, enum: [admin, user] }
+        department:
+          type: [string, 'null']
+          description: Reporting only. It does not influence access.
+        zoneId: { type: [integer, 'null'] }
+        mustChangePassword: { type: boolean }
+        isActive: { type: boolean }
+        printerIds:
+          type: array
+          items: { type: integer }
+          description: The grants, which are the sole source of printer permission.
+
+    LoginResult:
+      type: object
+      properties:
+        accessToken: { type: string }
+        expiresIn: { type: integer }
+        user: { $ref: '#/components/schemas/User' }
+        mustChangePassword: { type: boolean }
+
+    PrintAccepted:
+      type: object
+      properties:
+        jobId: { type: integer }
+        status: { type: string, enum: [queued, held] }
+        impressions: { type: integer }
+        message: { type: string }
+
+    UsageSummary:
+      type: object
+      properties:
+        totalJobs: { type: integer }
+        totalImpressions: { type: integer }
+        colorImpressions: { type: integer }
+        monoImpressions: { type: integer }
+        duplexJobs: { type: integer }
+        scanCount: { type: integer }
+        estimatedCost: { type: number }
+        currency: { type: string }
+        co2Grams: { type: number }
+        sheetsSavedByDuplex: { type: integer }
+        hasCoverageGap: { type: boolean }
+        coverageGapPrinters:
+          type: array
+          items: { type: string }
+        includesUntypedDeviceActivity: { type: boolean }
+        walkupLabel: { type: string }
+        coverageNote:
+          type: [string, 'null']
+          description: Present when printers in scope are untracked. Display it beside the totals, not behind a tooltip.
+        typeNote: { type: [string, 'null'] }
+
+    AppSettings:
+      type: object
+      properties:
+        uploadRetentionDays: { type: integer }
+        scanRetentionDays: { type: integer }
+        notificationRetentionDays: { type: integer }
+        maxJobImpressions: { type: integer }
+        largeJobWarnImpressions: { type: integer }
+        maxConcurrentJobsPerPrinter: { type: integer }
+        printerCooldownSeconds: { type: integer }
+        costPerPageMono: { type: number }
+        costPerPageColor: { type: number }
+        currency: { type: string }
+        co2GramsPerImpression: { type: number }
+        emailEnabled: { type: boolean }
+        webPushEnabled: { type: boolean }
+        scanReservationMinutes: { type: integer }
+        walkupReportLabel: { type: string }
+
+    ReadinessReport:
+      type: object
+      properties:
+        status: { type: string, enum: [pass, warn, fail] }
+        version: { type: string }
+        uptimeSeconds: { type: integer }
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              status: { type: string, enum: [pass, warn, fail] }
+              detail: { type: string }
+              durationMs: { type: integer }

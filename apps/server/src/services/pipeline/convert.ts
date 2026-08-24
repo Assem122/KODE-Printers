@@ -73,29 +73,29 @@ export async function officeToPdf(
   return withTempDir(`lo-${jobId}`, async (dir) => {
     const safeName = `input${extname(originalFilename) || '.tmp'}`;
     const inputPath = join(dir, safeName);
-    const _profileDir = join(dir, 'profile');
+    const profileDir = join(dir, 'profile');
     const outDir = join(dir, 'out');
 
     await writeFile(inputPath, input);
 
-   await runSandboxed({
-  command: config.convert.libreOfficePath,
-  args: [
-    '--headless',
-    '--norestore',
-    '--nolockcheck',
-    '--nodefault',
-    '--nofirststartwizard',
-    `-env:UserInstallation=file://${_profileDir.replace(/\\/g, '/')}`,
-    '--convert-to',
-    'pdf:writer_pdf_Export',
-    '--outdir',
-    outDir,
-    inputPath,
-  ],
-  cwd: dir,
-  env: { TMPDIR: dir },
-});
+    await runSandboxed({
+      command: config.convert.libreOfficePath,
+      args: [
+        '--headless',
+        '--norestore',
+        '--nolockcheck',
+        '--nodefault',
+        '--nofirststartwizard',
+        `-env:UserInstallation=file://${profileDir.replace(/\\/g, '/')}`,
+        '--convert-to',
+        'pdf:writer_pdf_Export',
+        '--outdir',
+        outDir,
+        inputPath,
+      ],
+      cwd: dir,
+      env: { TMPDIR: dir },
+    });
 
     const produced = await readdir(outDir).catch(() => [] as string[]);
     const pdfName = produced.find((name) => name.toLowerCase().endsWith('.pdf'));
@@ -123,23 +123,27 @@ export async function toGrayscale(input: Buffer, jobId: number): Promise<Buffer>
     const outputPath = join(dir, 'output.pdf');
     await writeFile(inputPath, input);
 
-   await runSandboxed({
-  command: config.convert.ghostscriptPath,
-  args: [
-    '-sDEVICE=pdfwrite',
-    '-dProcessColorModel=/DeviceGray',
-    '-sColorConversionStrategy=Gray',
-    '-dOverrideICC',
-    '-dNOPAUSE',
-    '-dBATCH',
-    '-dNOSAFER',
-    '-dQUIET',
-    `-sOutputFile=${outputPath}`,
-    inputPath,
-  ],
-  cwd: dir,
-  env: { TMPDIR: dir },
-});
+    await runSandboxed({
+      command: config.convert.ghostscriptPath,
+      args: [
+        '-sDEVICE=pdfwrite',
+        '-dProcessColorModel=/DeviceGray',
+        '-sColorConversionStrategy=Gray',
+        '-dOverrideICC',
+        '-dNOPAUSE',
+        '-dBATCH',
+        // SAFER, like every other Ghostscript invocation here. It was NOSAFER,
+        // which disables the file-access restrictions on a parser pointed at an
+        // uploaded document — undoing most of what sandbox.ts is for. The ICC
+        // override above needs no such privilege.
+        '-dSAFER',
+        '-dQUIET',
+        `-sOutputFile=${outputPath}`,
+        inputPath,
+      ],
+      cwd: dir,
+      env: { TMPDIR: dir },
+    });
 
     return readFile(outputPath);
   });

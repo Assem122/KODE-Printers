@@ -24,6 +24,8 @@ export interface StoredToken {
   familyId: string;
   expiresAt: string;
   revokedAt: string | null;
+  /** Whether the sign-in that started this family asked to be remembered. */
+  remembered: boolean;
 }
 
 export async function insertToken(
@@ -36,11 +38,14 @@ export async function insertToken(
     userAgent: string | null;
     ipAddress: string | null;
     replacesId?: number | null;
+    /** Inherited by every rotation, so the choice outlives the first token. */
+    remembered?: boolean;
   },
 ): Promise<number> {
   const { rows } = await db.query<{ id: number }>(
-    `INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at, user_agent, ip_address)
-     VALUES ($1,$2::uuid,$3,$4,$5,$6::inet) RETURNING id`,
+    `INSERT INTO refresh_tokens (user_id, family_id, token_hash, expires_at, user_agent,
+                                 ip_address, remembered)
+     VALUES ($1,$2::uuid,$3,$4,$5,$6::inet,$7) RETURNING id`,
     [
       input.userId,
       input.familyId,
@@ -48,6 +53,7 @@ export async function insertToken(
       input.expiresAt.toISOString(),
       input.userAgent,
       input.ipAddress,
+      input.remembered ?? false,
     ],
   );
   const id = rows[0]?.id;
@@ -69,8 +75,9 @@ export async function findByHash(db: Db, tokenHash: string): Promise<StoredToken
     family_id: string;
     expires_at: string;
     revoked_at: string | null;
+    remembered: boolean;
   }>(
-    `SELECT id, user_id, family_id::text AS family_id, expires_at, revoked_at
+    `SELECT id, user_id, family_id::text AS family_id, expires_at, revoked_at, remembered
        FROM refresh_tokens WHERE token_hash = $1`,
     [tokenHash],
   );
@@ -82,6 +89,7 @@ export async function findByHash(db: Db, tokenHash: string): Promise<StoredToken
     familyId: row.family_id,
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,
+    remembered: row.remembered,
   };
 }
 

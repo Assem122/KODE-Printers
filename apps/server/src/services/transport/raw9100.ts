@@ -84,19 +84,36 @@ export async function sendRaw(options: RawSendOptions): Promise<RawSendResult> {
         framingUsed: framing,
         durationMs: Date.now() - startedAt,
       };
-    }  catch (error) {
+    } catch (error) {
       lastError = error;
+
+      // Anything that is not a reset — refused connection, timeout, unreachable
+      // host — says nothing about the framing, so the ladder has nothing to
+      // offer and the error stands.
+      if (!isConnectionReset(error)) break;
+
+      /* A reset advances the ladder. That is the whole reason §B6.4 specifies
+       * one: a Xerox that dislikes an explicit LANGUAGE line rejects the block
+       * by tearing down the connection, and the same block without it prints.
+       *
+       * The payload having reached the kernel does not mean the device kept it.
+       * A guard here that refused to retry once the write completed sounded
+       * careful and disabled the ladder outright: a job small enough to hand
+       * over in one write — which is most of them — always looked "fully
+       * written" by the time the reset landed, so the fallback never ran and
+       * every device in the estate that needs it simply failed.
+       *
+       * RAW has no feedback channel, so the residual risk is real and stated
+       * rather than designed away: a device that accepts a job and *then*
+       * resets instead of closing cleanly gets the next framing too, and prints
+       * twice. Weighed against a framing fallback that never fires, a rare
+       * duplicate is the better failure — and it is logged either way. */
       const wroteFully = (error as NodeJS.ErrnoException & { writeCompleted?: boolean })
         .writeCompleted;
-      if (wroteFully) {
-        log.warn(
-          { host: options.host, framing },
-          'device reset after accepting the full payload; NOT retrying (job likely printed)',
-        );
-        break;
-      }
-      if (!isConnectionReset(error)) break;
-      log.warn({ host: options.host, framing }, 'device reset the connection; trying next framing');
+      log.warn(
+        { host: options.host, framing, wroteFully: wroteFully === true },
+        'device reset the connection; trying next framing',
+      );
     }
   }
 
@@ -122,8 +139,8 @@ function writeToSocket(options: WriteOptions): Promise<{ writeCompleted: boolean
     const socket = new Socket();
     let settled = false;
     let connected = false;
-    
-const finish = (error?: Error): void => {
+
+    const finish = (error?: Error): void => {
       if (settled) return;
       settled = true;
       socket.removeAllListeners();

@@ -232,7 +232,7 @@ export async function listAllPrinters(
   if (options.permittedIds) where.add('p.id = ANY(?::int[])', [...options.permittedIds]);
 
   const { rows } = await db.query<PrinterRow>(
-    `${PRINTER_SELECT} ${where.sql} ORDER BY s.name NULLS LAST, p.name`,
+    `${PRINTER_SELECT} ${where.sql} ORDER BY z.label NULLS LAST, p.name`,
     where.params,
   );
   return rows.map(toPrinter);

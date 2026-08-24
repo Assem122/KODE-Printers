@@ -5,7 +5,10 @@ coverage/
 *.tsbuildinfo
 .eslintcache
 .claude/
-docs/
+# docs/ is deliberately NOT ignored: openapi.yaml is the API contract that
+# `npm run check:api` verifies on every push, and the README links the ADRs
+# and the runbook. Ignoring it meant CI checked a file the repository could
+# never contain.
 kodeBranding/
 
 # Secrets and local config — never committed. INV-08.

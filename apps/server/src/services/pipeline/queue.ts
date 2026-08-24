@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { AppError, computeImpressions, isDuplex, type Job, type PrintOptions } from '@kode/shared';
 import { config } from '../../config/index.js';
-import { withTransaction, type Db } from '../../db/pool.js';
+import { withTransaction } from '../../db/pool.js';
 import { jobsModel } from '../../models/jobs.js';
 import type { PrinterWithSecrets } from '../../models/printers.js';
 import { serialiseError, subsystem } from '../../utilities/logger.js';

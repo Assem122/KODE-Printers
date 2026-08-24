@@ -17,7 +17,14 @@ declare global {
   namespace Express {
     interface Request {
       requestId: string;
-      actor?: { id: number; username: string; role: Role; department: string | null };
+      actor?: {
+        id: number;
+        username: string;
+        role: Role;
+        department: string | null;
+        /** Read by `requirePasswordChanged`, which is why it is loaded here. */
+        mustChangePassword: boolean;
+      };
       /** Set when the caller is a site collector rather than a person. */
       collectorId?: number;
     }

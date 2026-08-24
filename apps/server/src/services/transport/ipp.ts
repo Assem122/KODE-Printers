@@ -2,12 +2,15 @@ import ipp from 'ipp';
 import {
   AppError,
   BLOCKING_STATE_REASONS,
+  ippUriHost,
+  isPrivateIpv4,
   type ColorMode,
   type MediaSize,
   type PrinterCapabilities,
   type PrinterStatus,
   type Sides,
 } from '@kode/shared';
+import { config } from '../../config/index.js';
 import { subsystem } from '../../utilities/logger.js';
 
 const log = subsystem('transport:ipp');
@@ -111,6 +114,14 @@ async function execute(
   message: ipp.IppAttributes,
   timeoutMs: number,
 ): Promise<ipp.IppResponse> {
+  const host = ippUriHost(uri);
+  if (host === null || !isReachablePrinterHost(host)) {
+    throw new IppError(
+      'protocol',
+      `refusing to contact ${host ?? 'an unparseable IPP URI'}: a printer must be on a private network address`,
+    );
+  }
+
   const target = new URL(uri.replace(/^ipps:/i, 'https:').replace(/^ipp:/i, 'http:'));
   if (!target.port) target.port = String(IPP_PORT);
 
@@ -196,6 +207,26 @@ async function execute(
   }
 
   return parsed;
+}
+
+/**
+ * The SSRF control, re-applied at the socket.
+ *
+ * `ippUriSchema` refuses a non-private host on the way in, but this URI can
+ * also come from a row written before that rule existed or edited straight in
+ * the database — and what happens next is an outbound POST to whatever it
+ * names. A record that would turn the print path into a request forwarder is
+ * refused here rather than dialled.
+ *
+ * Loopback is allowed outside production, and only there: the fake-printer
+ * harness binds 127.0.0.1, and a test suite that cannot reach it is a test
+ * suite nobody runs. In production loopback is the *worst* target to allow,
+ * since it is where this application's own API listens.
+ */
+function isReachablePrinterHost(host: string): boolean {
+  if (isPrivateIpv4(host)) return true;
+  if (config.isProduction) return false;
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
 }
 
 /** Operation codes for the three operations §B6.3 names. */

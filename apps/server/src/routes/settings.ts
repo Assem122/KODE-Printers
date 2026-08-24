@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { settingsUpdateSchema } from '@kode/shared';
 import { getSettings, getSettingsFresh, updateSettings } from '../models/settings.js';
-import { actorOf, authenticate, requireAdmin, requirePasswordChanged } from '../middlewares/auth.js';
+import {
+  actorOf,
+  authenticate,
+  requireAdmin,
+  requirePasswordChanged,
+} from '../middlewares/auth.js';
 import { asyncHandler } from '../middlewares/context.js';
 import { body, validateBody } from '../middlewares/validate.js';
 import { auditedMutation } from '../services/audit.js';

@@ -486,19 +486,30 @@ export async function queueStats(db: Db): Promise<{ depth: number; oldestSeconds
   return { depth: rows[0]?.depth ?? 0, oldestSeconds: rows[0]?.oldest ?? 0 };
 }
 
-/** Files eligible for the retention sweep (DEC-03). Metadata is never removed. */
+/**
+ * Files eligible for the retention sweep (DEC-03). Metadata is never removed.
+ *
+ * `uploadDir` is not decoration. A template print points `file_path` at the
+ * canonical template rather than a per-job copy, and the sweep must never
+ * delete that — it refused correctly but left the row a candidate forever, so
+ * those rows accumulated at the head of this ordered batch until they filled
+ * all 500 slots and no real upload was ever purged again. Excluding them in
+ * the query is what stops the sweep starving itself.
+ */
 export async function listPurgeableFiles(
   db: Db,
   retentionDays: number,
+  uploadDir: string,
   limit = 500,
 ): Promise<Array<{ id: number; filePath: string }>> {
   const { rows } = await db.query<{ id: number; file_path: string }>(
     `SELECT id, file_path FROM jobs
       WHERE file_path IS NOT NULL
+        AND starts_with(file_path, $2)
         AND status IN ('completed','failed','cancelled','sent')
         AND created_at < now() - make_interval(days => $1)
-      ORDER BY created_at LIMIT $2`,
-    [retentionDays, limit],
+      ORDER BY created_at LIMIT $3`,
+    [retentionDays, uploadDir, limit],
   );
   return rows.map((row) => ({ id: row.id, filePath: row.file_path }));
 }

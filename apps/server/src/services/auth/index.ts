@@ -87,12 +87,26 @@ export function registerProvider(provider: AuthProvider): void {
 
 /* ------------------------------------------------------------------ login  */
 
+/**
+ * What a sign-in or a rotation hands back to the route.
+ *
+ * `refreshMaxAgeSeconds` travels with the token because the cookie's lifetime
+ * has to match the token's. The route used to set it from the *remembered* TTL
+ * unconditionally, so an ordinary session held a thirty-day cookie around a
+ * seven-day token and ended in a rejected refresh instead of a clean expiry.
+ */
+export interface Session {
+  result: LoginResult;
+  refreshToken: string;
+  refreshMaxAgeSeconds: number;
+}
+
 export async function login(
   username: string,
   password: string,
   rememberMe: boolean,
   context: AuthContext,
-): Promise<{ result: LoginResult; refreshToken: string }> {
+): Promise<Session> {
   const credentials = await usersModel.findCredentials(pool, username);
 
   /* A uniform failure for every rejection path.
@@ -171,7 +185,7 @@ export async function login(
   await usersModel.recordLoginSuccess(pool, user.id);
 
   const { accessToken, expiresIn } = signAccessToken(user, credentials.mustChangePassword);
-  const refreshToken = await issueRefreshToken(pool, user.id, randomUUID(), rememberMe, context);
+  const issued = await issueRefreshToken(pool, user.id, randomUUID(), rememberMe, context);
 
   await auditModel.write(pool, {
     actorUserId: user.id,
@@ -192,7 +206,8 @@ export async function login(
       user,
       mustChangePassword: credentials.mustChangePassword,
     },
-    refreshToken,
+    refreshToken: issued.token,
+    refreshMaxAgeSeconds: issued.maxAgeSeconds,
   };
 }
 
@@ -207,10 +222,7 @@ export async function login(
  * using the one it had already been exchanged for. Revoking the family is what
  * closes that.
  */
-export async function refresh(
-  presentedToken: string,
-  context: AuthContext,
-): Promise<{ result: LoginResult; refreshToken: string }> {
+export async function refresh(presentedToken: string, context: AuthContext): Promise<Session> {
   const tokenHash = hashToken(presentedToken);
 
   return withTransaction(async (tx) => {
@@ -275,11 +287,13 @@ export async function refresh(
       credentials?.mustChangePassword ?? false,
     );
 
-    const refreshToken = await issueRefreshToken(
+    // The family's original choice, not `false`. Rotating a remembered session
+    // into a seven-day token quietly signed those people out a week in.
+    const rotated = await issueRefreshToken(
       tx,
       user.id,
       stored.familyId,
-      false,
+      stored.remembered,
       context,
       stored.id,
     );
@@ -291,7 +305,8 @@ export async function refresh(
         user,
         mustChangePassword: credentials?.mustChangePassword ?? false,
       },
-      refreshToken,
+      refreshToken: rotated.token,
+      refreshMaxAgeSeconds: rotated.maxAgeSeconds,
     };
   });
 }
@@ -436,21 +451,23 @@ async function issueRefreshToken(
   rememberMe: boolean,
   context: AuthContext,
   replacesId?: number,
-): Promise<string> {
+): Promise<{ token: string; maxAgeSeconds: number }> {
   const { token, hash } = generateRefreshToken();
   const ttl = rememberMe ? config.auth.refreshTtlRemembered : config.auth.refreshTtl;
+  const maxAgeSeconds = parseDuration(ttl);
 
   await refreshTokensModel.insert(db, {
     userId,
     familyId,
     tokenHash: hash,
-    expiresAt: new Date(Date.now() + parseDuration(ttl) * 1000),
+    expiresAt: new Date(Date.now() + maxAgeSeconds * 1000),
     userAgent: context.userAgent,
     ipAddress: context.ip,
+    remembered: rememberMe,
     ...(replacesId === undefined ? {} : { replacesId }),
   });
 
-  return token;
+  return { token, maxAgeSeconds };
 }
 
 /** Parses `15m`, `7d`, `24h`, or a bare number of seconds. */

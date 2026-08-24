@@ -1,8 +1,6 @@
 import type { Collector } from '@kode/shared';
 import type { Db } from '../db/pool.js';
 
-
-
 interface CollectorRow {
   id: number;
   name: string;

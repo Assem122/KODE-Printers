@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { register, collectDefaultMetrics, Gauge } from 'prom-client';
-import type { HealthCheck, ReadinessReport } from '@kode/shared';
+import { isPrivateIpv4, type HealthCheck, type ReadinessReport } from '@kode/shared';
 import { config } from '../config/index.js';
 import { checkDatabase, pool } from '../db/pool.js';
 import { converterVersions } from '../config/guards.js';
@@ -147,9 +147,14 @@ if (config.observability.metricsEnabled) {
 }
 
 /**
- * §B13.2 binds this to localhost. Enforced at the route rather than the
- * listener because the process binds loopback anyway in production — the check
- * is what keeps it closed if someone ever fronts it differently.
+ * §B13.2 keeps this off the public internet. Enforced at the route rather than
+ * the listener, so it stays closed if someone ever fronts the app differently.
+ *
+ * What "off the public internet" means depends on the topology, and testing
+ * only for loopback got it wrong in a container: there the proxy is a separate
+ * service, so every request arrives from the internal network and the metrics
+ * endpoint 403'd the very scrape it exists for. Isolation comes from the port
+ * not being published, so a private source address is the right test there.
  */
 healthRouter.get(
   '/metrics',
@@ -159,9 +164,14 @@ healthRouter.get(
       return;
     }
 
-    const remote = req.socket.remoteAddress ?? '';
-    const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote);
-    if (config.isProduction && !isLocal) {
+    // Deliberately the socket's own address, never a forwarded header: an
+    // X-Forwarded-For a caller controls would make this gate self-service.
+    const remote = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+    const isLoopback = remote === '127.0.0.1' || remote === '::1';
+    const permitted =
+      config.http.topology === 'container' ? isLoopback || isPrivateIpv4(remote) : isLoopback;
+
+    if (config.isProduction && !permitted) {
       res.status(403).end();
       return;
     }

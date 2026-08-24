@@ -40,9 +40,18 @@ export const PRINTER_MIB = {
    */
   markerLifeCount: '1.3.6.1.2.1.43.10.2.1.4.1.1',
 
-  markerColorantValue: '1.3.6.1.2.1.43.11.1.1.6',
+  /**
+   * prtMarkerColorantValue — "black", "cyan". Lives in the *colorant* table
+   * (43.12), not the supplies table, and is indexed by colorant rather than by
+   * supply. This pointed at 43.11.1.1.6 — which is the supplies description —
+   * so every cartridge's colorant came back as a copy of its own name.
+   * `suppliesColorantIndex` below is what joins the two.
+   */
+  markerColorantValue: '1.3.6.1.2.1.43.12.1.1.4',
   /** prtMarkerSuppliesDescription — walked to enumerate cartridges. */
   suppliesDescription: '1.3.6.1.2.1.43.11.1.1.6.1',
+  /** prtMarkerSuppliesColorantIndex — supply index → colorant index, or 0 for none. */
+  suppliesColorantIndex: '1.3.6.1.2.1.43.11.1.1.3.1',
   /** prtMarkerSuppliesLevel — current level; -2 means "unknown", -3 "some left". */
   suppliesLevel: '1.3.6.1.2.1.43.11.1.1.9.1',
   /** prtMarkerSuppliesMaxCapacity — denominator for the percentage. */

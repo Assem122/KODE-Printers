@@ -165,7 +165,7 @@ export function buildPjlHeader(options: PjlOptions, includeLanguage: boolean): B
     '@PJL SET RESOLUTION=600',
   );
 
- if (includeLanguage) {
+  if (includeLanguage) {
     const language = CONTENT_TYPE_TO_PJL_LANGUAGE[options.contentType];
     if (language) lines.push('@PJL ENTER LANGUAGE=' + language);
   }

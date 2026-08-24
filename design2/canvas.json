@@ -1,0 +1,44 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 960, "title": "Dashboard — web" },
+    { "file": "Mobile.dc.html", "x": 1530, "y": 0, "w": 390, "h": 844, "title": "Dashboard — mobile" }
+  ],
+  "annotations": [
+    {
+      "id": "palette",
+      "x": 0,
+      "y": -290,
+      "w": 700,
+      "text": "THE PALETTE\n\nBone #FAF7F2 page, white cards, sand #F2ECE3 fills, taupe #E6DED2 rules, warm ink #241F1A. Nothing is pure grey — every neutral is warmed, which is what stops it reading as a generic admin panel.\n\nColour is rationed. KODE blue #2150A0 appears only on the mark and the single primary action. Status uses muted naturals rather than signal colours: sage #5F7A5A ready, ochre #B8862B attention, brick #A9524A stopped, clay #B0764F for scans and anything needing a claim."
+    },
+    {
+      "id": "type",
+      "x": 730,
+      "y": -290,
+      "w": 710,
+      "text": "THE TYPE\n\nInstrument Serif for the greeting and every headline figure — it is what makes the dashboard feel considered rather than generated. Montserrat carries all interface text, so the brand's own typeface still does the work everywhere a person reads a label.\n\nSerif is used sparingly and only for numbers and page titles. Used on body text it would read as a magazine, not a tool."
+    },
+    {
+      "id": "data",
+      "x": 1530,
+      "y": -290,
+      "w": 390,
+      "text": "EVERY FIGURE IS REAL\n\nAll four tiles, the series and the fleet panel come from GET /stats/overview and the printer list — impressions, estimated cost in EGP, scans with an unclaimed count, sheets saved by duplex.\n\nThe two-line chart separates app jobs from walk-up use, because the backend refuses to call the second one printing."
+    },
+    {
+      "id": "honesty",
+      "x": 0,
+      "y": 1010,
+      "w": 700,
+      "text": "The coverage note in the lower right is not decoration — it is coverageNote from the summary response, rendered where the totals are, in the same weight as everything else. A caveat behind a tooltip does not exist on a phone.\n\nWalk-up rows say \"Device activity\", never \"print\", which is what the backend's walkupReportLabel is for."
+    },
+    {
+      "id": "mobile-note",
+      "x": 1530,
+      "y": 890,
+      "w": 390,
+      "text": "The mobile view is the same information, re-ranked rather than re-designed: greeting and the print action first, four tiles in a 2×2, the chart compressed to a sparkline, and the fleet cut to the printers that need something.\n\nThe broken printer sorts to the top in both views."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

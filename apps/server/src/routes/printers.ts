@@ -165,15 +165,20 @@ printersRouter.post(
     // rather than typed. The probe runs out of band so a sleeping device does
     // not make the create request hang.
     if (input.probeNow) {
+      /* Detached, and the catch is on the whole thing rather than on the probe
+       * alone. `process.on('unhandledRejection')` shuts this server down, so a
+       * database blip in either of the two reads either side of the probe would
+       * take the API with it — a background nicety killing the process that
+       * just answered 201. */
       void (async () => {
         const withSecrets = await printersModel.findWithSecrets(pool, printer.id);
         if (!withSecrets) return;
-        await probeAndPersist(pool, withSecrets).catch((error: unknown) => {
-          log.warn({ printerId: printer.id, err: String(error) }, 'initial probe failed');
-        });
+        await probeAndPersist(pool, withSecrets);
         const refreshed = await printersModel.find(pool, printer.id);
         if (refreshed) events.printerUpdated(refreshed);
-      })();
+      })().catch((error: unknown) => {
+        log.warn({ printerId: printer.id, err: String(error) }, 'initial probe failed');
+      });
     }
 
     res.status(201).json(printer);

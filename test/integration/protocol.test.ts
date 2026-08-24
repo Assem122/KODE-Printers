@@ -136,6 +136,7 @@ describe('RAW/9100 transport', () => {
     orientation: 'portrait' as const,
     jobName: 'Membership form',
     username: 'testuser',
+    contentType: 'application/pdf',
   };
 
   it('delivers the document with its PJL prologue', async () => {

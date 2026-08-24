@@ -1,4 +1,4 @@
-import { appendFile, mkdir, readFile, rename, rm, stat } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CollectorEventsInput } from '@kode/shared';
 import { config } from '../../config/index.js';
@@ -49,6 +49,17 @@ export async function append(event: CollectorEvent): Promise<void> {
 }
 
 /**
+ * Lines of `events.sending.jsonl` consumed by the last {@link claimBatch}.
+ *
+ * `releaseBatch` needs this because a claim is capped at `maxEvents` while the
+ * file may hold far more. Deleting the whole file on release discarded every
+ * event past the cap, so a ten-minute outage that spooled 5,000 events
+ * delivered 200 and lost the rest — precisely the hole the spool exists to
+ * close.
+ */
+let claimedLines = 0;
+
+/**
  * Claims the spool for sending by renaming it.
  *
  * The rename is atomic, so events arriving while a batch is in flight land in a
@@ -64,16 +75,23 @@ export async function claimBatch(maxEvents: number): Promise<CollectorEvent[]> {
 
   const hasUnsent = await exists(sendingPath);
   if (!hasUnsent) {
-    if (!(await exists(spoolPath))) return [];
+    if (!(await exists(spoolPath))) {
+      claimedLines = 0;
+      return [];
+    }
     await rename(spoolPath, sendingPath);
   }
 
   const contents = await readFile(sendingPath, 'utf8').catch(() => '');
   const events: CollectorEvent[] = [];
+  let consumed = 0;
 
   for (const line of contents.split('\n')) {
-    if (line.trim() === '') continue;
     if (events.length >= maxEvents) break;
+    // Counted before the parse, so a line that cannot be parsed is dropped
+    // rather than re-read on every flush forever.
+    consumed += 1;
+    if (line.trim() === '') continue;
     try {
       events.push(JSON.parse(line) as CollectorEvent);
     } catch {
@@ -84,12 +102,35 @@ export async function claimBatch(maxEvents: number): Promise<CollectorEvent[]> {
     }
   }
 
+  claimedLines = consumed;
   return events;
 }
 
-/** Called after the server has accepted a batch. */
+/**
+ * Called after the server has accepted a batch.
+ *
+ * Removes only the lines that were actually sent. Whatever the per-batch cap
+ * left behind stays in the sending file and goes out on the next flush.
+ */
 export async function releaseBatch(): Promise<void> {
-  await rm(join(config.collector.spoolDir, SENDING_FILE), { force: true });
+  const sendingPath = join(config.collector.spoolDir, SENDING_FILE);
+  const contents = await readFile(sendingPath, 'utf8').catch(() => null);
+  const consumed = claimedLines;
+  claimedLines = 0;
+
+  if (contents === null) return;
+
+  const remaining = contents
+    .split('\n')
+    .slice(consumed)
+    .filter((line) => line.trim() !== '');
+
+  if (remaining.length === 0) {
+    await rm(sendingPath, { force: true });
+    return;
+  }
+
+  await writeFile(sendingPath, `${remaining.join('\n')}\n`, 'utf8');
 }
 
 /**
@@ -116,7 +157,6 @@ export async function enforceCap(): Promise<SpoolStats> {
   const keep = lines.slice(lines.length - config.collector.spoolMaxEvents);
   const dropped = lines.length - keep.length;
 
-  const { writeFile } = await import('node:fs/promises');
   await writeFile(spoolPath, `${keep.join('\n')}\n`, 'utf8');
 
   overflowed = true;
@@ -137,11 +177,19 @@ export function takeOverflowReport(): { overflowed: boolean; droppedCount: numbe
   return report;
 }
 
+/**
+ * Events still waiting, across both files.
+ *
+ * The sending file is counted too: when a batch was capped, the remainder lives
+ * there, and reporting zero would idle the agent for ten seconds with a backlog
+ * it could be draining.
+ */
 export async function pendingCount(): Promise<number> {
-  const contents = await readFile(join(config.collector.spoolDir, SPOOL_FILE), 'utf8').catch(
-    () => '',
-  );
-  return contents.split('\n').filter((line) => line.trim() !== '').length;
+  const count = async (file: string): Promise<number> => {
+    const contents = await readFile(join(config.collector.spoolDir, file), 'utf8').catch(() => '');
+    return contents.split('\n').filter((line) => line.trim() !== '').length;
+  };
+  return (await count(SPOOL_FILE)) + (await count(SENDING_FILE));
 }
 
 async function exists(path: string): Promise<boolean> {

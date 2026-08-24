@@ -62,7 +62,6 @@ export async function usageSummary(
     color_impressions: number;
     mono_impressions: number;
     duplex_jobs: number;
-    scan_count: number;
     duplex_pages: number;
     untyped: number;
   }>(
@@ -75,7 +74,6 @@ export async function usageSummary(
                      FILTER (WHERE j.color_mode IS DISTINCT FROM 'color'
                                AND j.job_type <> 'scan'), 0)::int      AS mono_impressions,
             count(*) FILTER (WHERE j.duplex)::int                      AS duplex_jobs,
-            count(*) FILTER (WHERE j.job_type = 'scan')::int           AS scan_count,
             COALESCE(sum(COALESCE(j.impressions, j.pages * j.copies))
                      FILTER (WHERE j.duplex), 0)::int                  AS duplex_pages,
             count(*) FILTER (WHERE j.job_type = 'unknown')::int        AS untyped
@@ -89,14 +87,38 @@ export async function usageSummary(
     color_impressions: 0,
     mono_impressions: 0,
     duplex_jobs: 0,
-    scan_count: 0,
     duplex_pages: 0,
     untyped: 0,
   };
 
+  /* Scans live in their own table, so counting `jobs WHERE job_type = 'scan'`
+   * counted nothing: the scan watcher writes a `scans` row and no job row, and
+   * only an admin's manual entry can carry that type. Every report showed zero
+   * scans however busy the inbox was. */
+  const scanWhere = new WhereBuilder();
+  scanWhere.add('sc.created_at >= ?::timestamptz', scope.from);
+  scanWhere.add("sc.created_at < (?::timestamptz + interval '1 day')", scope.to);
+  scanWhere.addIf(scope.zoneId, 'sc.zone_id = ?', scope.zoneId);
+  scanWhere.addIf(scope.printerId, 'sc.printer_id = ?', scope.printerId);
+  scanWhere.addIf(scope.userId, 'sc.user_id = ?', scope.userId);
+  if (scope.permittedPrinterIds) {
+    scanWhere.add('sc.printer_id = ANY(?::int[])', [...scope.permittedPrinterIds]);
+  }
+  const { rows: scanRows } = await db.query<{ count: number }>(
+    `SELECT count(*)::int AS count FROM scans sc ${scanWhere.sql}`,
+    scanWhere.params,
+  );
+
   const gapWhere = new WhereBuilder();
   gapWhere.add('p.is_active');
-  gapWhere.add("(p.snmp_version = 'disabled' OR p.snmp_community IS NULL)");
+  /* The same test the printer read path uses for `walkupTrackingUnavailable`.
+   * Keying on the community string alone reported every SNMPv3 printer as an
+   * untracked gap: v3 authenticates with a username and keys and leaves that
+   * column null, so the two halves of the system disagreed about which devices
+   * were covered. */
+  gapWhere.add(
+    "(p.snmp_version = 'disabled' OR (p.snmp_community IS NULL AND p.snmp_username IS NULL))",
+  );
   gapWhere.addIf(scope.zoneId, 'p.zone_id = ?', scope.zoneId);
   gapWhere.addIf(scope.printerId, 'p.id = ?', scope.printerId);
   if (scope.permittedPrinterIds) {
@@ -113,7 +135,7 @@ export async function usageSummary(
     colorImpressions: row.color_impressions,
     monoImpressions: row.mono_impressions,
     duplexJobs: row.duplex_jobs,
-    scanCount: row.scan_count,
+    scanCount: scanRows[0]?.count ?? 0,
     estimatedCost: computeCost({
       monoImpressions: row.mono_impressions,
       colorImpressions: row.color_impressions,

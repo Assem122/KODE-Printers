@@ -155,6 +155,8 @@ describe('PJL framing', () => {
     orientation: 'portrait' as const,
     jobName: 'Membership form',
     username: 'a.hassan',
+    // Required by PjlOptions, and what decides the ENTER LANGUAGE line.
+    contentType: 'application/pdf',
   };
 
   const document = Buffer.from('%PDF-1.7 body');
