@@ -51,7 +51,6 @@ export function Notifications(): ReactElement {
   return (
     <>
       <PageHeader
-        eyebrow="Alerts"
         title="Notifications"
         subtitle={unreadCount > 0 ? `${unreadCount} unread` : 'Everything is read'}
         actions={

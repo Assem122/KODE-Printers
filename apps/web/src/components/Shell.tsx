@@ -8,8 +8,10 @@ import {
   BellIcon,
   FleetIcon,
   HistoryIcon,
+  HomeIcon,
   InsightIcon,
   KodeMark,
+  PeopleIcon,
   PrintIcon,
   ScanIcon,
 } from './ui.js';
@@ -34,15 +36,25 @@ interface Destination {
   adminOnly?: boolean;
   /** Shown in the bottom bar. The rail shows everything. */
   primary?: boolean;
+  /**
+   * What the bottom bar calls it.
+   *
+   * A tab is about 75px wide on the narrowest phone the club uses, and
+   * "Print a document" does not fit in it — it wrapped and pushed the icon out
+   * of the tab. The sidebar has room for the full phrase; the tab does not.
+   */
+  short?: string;
 }
 
 const DESTINATIONS: readonly Destination[] = [
-  { to: '/print', label: 'Print', icon: <PrintIcon />, primary: true },
-  { to: '/fleet', label: 'Printers', icon: <FleetIcon />, primary: true },
-  { to: '/scans', label: 'Scans', icon: <ScanIcon />, primary: true },
-  { to: '/jobs', label: 'History', icon: <HistoryIcon />, primary: true },
-  { to: '/insights', label: 'Insights', icon: <InsightIcon /> },
-  { to: '/admin', label: 'Admin', icon: <AdminIcon />, adminOnly: true },
+  { to: '/', label: 'Home', icon: <HomeIcon />, primary: true, short: 'Home' },
+  { to: '/print', label: 'Print a document', icon: <PrintIcon />, primary: true, short: 'Print' },
+  { to: '/fleet', label: 'Printers', icon: <FleetIcon />, primary: true, short: 'Printers' },
+  { to: '/scans', label: 'Scans', icon: <ScanIcon />, primary: true, short: 'Scans' },
+  { to: '/jobs', label: 'History', icon: <HistoryIcon /> },
+  { to: '/people', label: 'People', icon: <PeopleIcon />, adminOnly: true },
+  { to: '/insights', label: 'Reports', icon: <InsightIcon /> },
+  { to: '/admin', label: 'Settings', icon: <AdminIcon />, adminOnly: true },
 ];
 
 export function Shell(): ReactElement {
@@ -63,8 +75,11 @@ export function Shell(): ReactElement {
   return (
     <div className="shell">
       <nav className="rail" aria-label="Main">
-        <NavLink to="/print" className="rail__brand" aria-label="KODE Printer home">
-          <KodeMark size={26} title="KODE Printer" />
+        <NavLink to="/" className="rail__brand" aria-label="KODE Printer home">
+          <KodeMark size={24} title="KODE Printer" />
+          <span>
+            KODE <span style={{ color: 'var(--text-tertiary)' }}>PRINTER</span>
+          </span>
         </NavLink>
 
         {visible.map((entry) => (
@@ -104,14 +119,14 @@ export function Shell(): ReactElement {
           .map((entry) => (
             <NavLink key={entry.to} to={entry.to} className="bottom-nav__item">
               {entry.icon}
-              {entry.label}
+              {entry.short ?? entry.label}
             </NavLink>
           ))}
         <NavLink to="/notifications" className="bottom-nav__item">
           <span style={{ position: 'relative', display: 'grid', placeItems: 'center' }}>
             <BellIcon />
             {unreadCount > 0 ? (
-              <span className="nav-item__badge" style={{ top: -4, right: -6 }} aria-hidden="true">
+              <span className="bottom-nav__badge" aria-hidden="true">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             ) : null}

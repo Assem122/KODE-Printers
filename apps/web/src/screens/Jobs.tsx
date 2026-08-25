@@ -47,7 +47,6 @@ export function Jobs(): ReactElement {
   return (
     <>
       <PageHeader
-        eyebrow="History"
         title={isAdmin ? 'All activity' : 'Your activity'}
         subtitle="Everything this system sent, plus anything started at a device."
         actions={

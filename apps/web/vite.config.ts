@@ -74,7 +74,10 @@ export default defineConfig({
   },
 
   server: {
-    port: 5173,
+    // 5173 by default, but yields to PORT when something else already holds it.
+    // Hardcoding it means a second checkout, or any other Vite project, cannot
+    // run alongside this one.
+    port: Number(process.env['PORT']) || 5173,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:3000',

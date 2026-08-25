@@ -93,7 +93,6 @@ export function Scans(): ReactElement {
   return (
     <>
       <PageHeader
-        eyebrow="Scans"
         title="Scan inbox"
         subtitle="Scans arriving from club printers. Claim one to keep it."
         actions={

@@ -152,9 +152,37 @@ export interface User {
   lastLoginAt: IsoTimestamp | null;
   isActive: boolean;
   isSystem: boolean;
+  /** False while an account exists but nobody has chosen a password for it yet. */
+  hasPassword: boolean;
+  /**
+   * When the outstanding set-password link stops working, or null when there
+   * is none. Drives the "waiting to set a password" list.
+   */
+  setupLinkExpiresAt: IsoTimestamp | null;
   printerIds?: number[];
   createdAt: IsoTimestamp;
   updatedAt: IsoTimestamp;
+}
+
+/**
+ * A freshly minted set-password link.
+ *
+ * `url` is the whole thing an administrator copies. It is returned exactly
+ * once — only the hash is stored — so a client that loses it must mint another.
+ */
+export interface SetupLink {
+  url: string;
+  purpose: 'setup' | 'reset';
+  expiresAt: IsoTimestamp;
+  user: { id: number; username: string; displayName: string | null };
+}
+
+/** What the set-password page may know before anyone has authenticated. */
+export interface SetupLinkSubject {
+  username: string;
+  displayName: string | null;
+  purpose: 'setup' | 'reset';
+  expiresAt: IsoTimestamp;
 }
 
 export interface PrintOptions {

@@ -143,6 +143,10 @@ export const AUDIT_ACTIONS = [
   'user.update',
   'user.deactivate',
   'user.password_set',
+  /** An administrator minted a set-password or reset link. */
+  'user.setup_link',
+  /** Someone redeemed one and chose their own password. */
+  'user.password_chosen',
   'user.printers_set',
   'printer.create',
   'printer.update',

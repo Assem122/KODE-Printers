@@ -16,6 +16,7 @@ import {
   type PrintTemplate,
 } from '@kode/shared';
 import { api, ApiError } from '../lib/api.js';
+import { printerCondition } from '../lib/plain.js';
 import {
   Badge,
   Button,
@@ -187,7 +188,6 @@ export function PrintComposer(): ReactElement {
   return (
     <>
       <PageHeader
-        eyebrow="Print"
         title="Send something to a printer"
         subtitle="Upload a document, choose how it should come out, and it goes straight to the device."
       />
@@ -199,7 +199,7 @@ export function PrintComposer(): ReactElement {
             <div className="card__header">
               <h2 className="card__title">1 · Choose a printer</h2>
               {selected ? (
-                <StatusBadge status={selected.status} reasons={selected.stateReasons} />
+                <StatusBadge status={selected.status} label={printerCondition(selected).text} />
               ) : null}
             </div>
             <div className="card__body">
@@ -623,7 +623,7 @@ function PrinterPicker({
                     transition: 'all var(--duration-fast) var(--ease-out)',
                   }}
                 >
-                  <StatusBadge status={printer.status} reasons={printer.stateReasons} />
+                  <StatusBadge status={printer.status} label={printerCondition(printer).text} />
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="truncate" style={{ fontWeight: 700 }}>
                       {printer.name}
