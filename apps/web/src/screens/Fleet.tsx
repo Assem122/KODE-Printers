@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import type { Paginated, Printer, PrinterSupply } from '@kode/shared';
 import { api, ApiError } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
-import { printerCondition } from '../lib/plain.js';
+import { printerCondition, supplyGaugePercent, supplyLevelText, supplyName } from '../lib/plain.js';
 import {
   Badge,
   Button,
@@ -23,6 +23,7 @@ import {
   ScanIcon,
   Skeleton,
   StatusBadge,
+  StatusDot,
   useToast,
 } from '../components/ui.js';
 
@@ -220,16 +221,30 @@ function PrinterCard({
   return (
     <Card interactive>
       <div className="card__body stack" style={{ gap: 'var(--space-4)' }}>
-        <div className="row row--between" style={{ alignItems: 'flex-start' }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="truncate" style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>
-              {printer.name}
+        {/* The name wins the width argument.
+         *
+         * Both children used to be free to size themselves, so a long condition
+         * label took the row and "Testing Xerox" rendered as "Te…". The name is
+         * the one thing that identifies the card, so it gets `flex: 1` and the
+         * badge is pushed onto its own line rather than allowed to squeeze it. */}
+        <div className="stack" style={{ gap: 'var(--space-2)' }}>
+          <div
+            className="row row--between"
+            style={{ alignItems: 'flex-start', gap: 'var(--space-3)' }}
+          >
+            <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+              <div className="truncate" style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>
+                {printer.name}
+              </div>
+              <div className="dim truncate" style={{ fontSize: 'var(--text-xs)' }}>
+                {[printer.area, printer.model].filter(Boolean).join(' · ') || printer.ipAddress}
+              </div>
             </div>
-            <div className="dim truncate" style={{ fontSize: 'var(--text-xs)' }}>
-              {[printer.area, printer.model].filter(Boolean).join(' · ') || printer.ipAddress}
-            </div>
+            <StatusDot status={printer.status} />
           </div>
-          <StatusBadge status={printer.status} label={printerCondition(printer).text} />
+          <div className="row row--wrap" style={{ gap: 'var(--space-2)' }}>
+            <StatusBadge status={printer.status} label={condition.text} />
+          </div>
         </div>
 
         {condition.kind === 'stopped' ? (
@@ -287,7 +302,9 @@ function PrinterCard({
  */
 function Supplies({ supplies }: { supplies: readonly PrinterSupply[] }): ReactElement {
   const colorFor = (supply: PrinterSupply): string => {
-    const percent = supply.percent ?? 100;
+    // The gauge fraction, not the displayed figure: a cartridge measured in
+    // pages has no percentage to threshold on, and it still needs to turn red.
+    const percent = supplyGaugePercent(supply) ?? 100;
     if (percent <= 10) return 'var(--status-offline)';
     if (percent <= 25) return 'var(--status-degraded)';
     const colorant = supply.colorant?.toLowerCase() ?? '';
@@ -300,7 +317,7 @@ function Supplies({ supplies }: { supplies: readonly PrinterSupply[] }): ReactEl
   return (
     <div className="stack" style={{ gap: 'var(--space-2)' }}>
       {supplies
-        .filter((supply) => supply.percent !== null)
+        .filter((supply) => supplyLevelText(supply) !== null)
         .slice(0, 5)
         .map((supply) => (
           <div key={supply.name}>
@@ -308,13 +325,22 @@ function Supplies({ supplies }: { supplies: readonly PrinterSupply[] }): ReactEl
               className="row row--between"
               style={{ fontSize: 'var(--text-2xs)', marginBottom: 3 }}
             >
-              <span className="dim truncate">{supply.name}</span>
-              <span style={{ fontWeight: 700, color: colorFor(supply) }}>{supply.percent}%</span>
+              {/* `title` keeps the part and serial number one hover away, for
+                  whoever is actually ordering the replacement. */}
+              <span className="dim truncate" title={supply.name}>
+                {supplyName(supply.name)}
+              </span>
+              <span style={{ fontWeight: 700, color: colorFor(supply) }}>
+                {supplyLevelText(supply)}
+              </span>
             </div>
             <div className="gauge">
               <div
                 className="gauge__fill"
-                style={{ width: `${supply.percent ?? 0}%`, background: colorFor(supply) }}
+                style={{
+                  width: `${supplyGaugePercent(supply) ?? 0}%`,
+                  background: colorFor(supply),
+                }}
               />
             </div>
             {supply.estimatedDaysRemaining !== null && supply.estimatedDaysRemaining <= 21 ? (

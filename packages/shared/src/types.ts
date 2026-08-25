@@ -126,6 +126,19 @@ export interface PrinterSupply {
   colorant: string | null;
   level: number | null;
   maxLevel: number | null;
+  /**
+   * What `level` counts — `percent`, `impressions`, `sheets`, … Null where the
+   * device did not say. See `prtMarkerSuppliesSupplyUnit` and migration 004.
+   */
+  unit: string | null;
+  /**
+   * Percentage remaining, **only where the device reports one**.
+   *
+   * Null for a supply measured in a count, because `level / maxLevel` is then a
+   * fraction of rated yield rather than the figure the device displays — a
+   * Xerox toner reporting 260 pages of a 26,000-page cartridge gives 1% against
+   * a machine showing 10%. Render `level` with `unit` instead of inventing one.
+   */
   percent: number | null;
   /** Linear projection from recent consumption. Null until enough history exists. */
   estimatedDaysRemaining: number | null;

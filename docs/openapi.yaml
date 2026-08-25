@@ -221,7 +221,11 @@ paths:
         - { $ref: '#/components/parameters/Cursor' }
         - { $ref: '#/components/parameters/Limit' }
         - { name: zoneId, in: query, schema: { type: integer } }
-        - { name: status, in: query, schema: { type: string, enum: [online, offline, degraded, unknown] } }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [online, offline, degraded, unknown] },
+          }
         - { name: search, in: query, schema: { type: string } }
         - { name: includeInactive, in: query, schema: { type: boolean } }
       responses:
@@ -369,7 +373,11 @@ paths:
         - { name: userId, in: query, schema: { type: integer } }
         - { name: status, in: query, schema: { type: string } }
         - { name: source, in: query, schema: { type: string, enum: [app, walkup, manual] } }
-        - { name: jobType, in: query, schema: { type: string, enum: [print, scan, copy, fax, unknown] } }
+        - {
+            name: jobType,
+            in: query,
+            schema: { type: string, enum: [print, scan, copy, fax, unknown] },
+          }
         - { name: from, in: query, schema: { type: string } }
         - { name: to, in: query, schema: { type: string } }
         - { name: search, in: query, schema: { type: string } }
@@ -458,7 +466,11 @@ paths:
         - { $ref: '#/components/parameters/Cursor' }
         - { $ref: '#/components/parameters/Limit' }
         - { name: printerId, in: query, schema: { type: integer } }
-        - { name: status, in: query, schema: { type: string, enum: [unclaimed, claimed, archived] } }
+        - {
+            name: status,
+            in: query,
+            schema: { type: string, enum: [unclaimed, claimed, archived] },
+          }
         - { name: mine, in: query, schema: { type: boolean } }
       responses:
         '200':
@@ -668,7 +680,11 @@ paths:
       parameters:
         - { name: from, in: query, required: true, schema: { type: string } }
         - { name: to, in: query, required: true, schema: { type: string } }
-        - { name: dimension, in: query, schema: { type: string, enum: [user, printer, zone, department] } }
+        - {
+            name: dimension,
+            in: query,
+            schema: { type: string, enum: [user, printer, zone, department] },
+          }
         - { name: limit, in: query, schema: { type: integer, maximum: 50 } }
       responses:
         '200':
@@ -1063,7 +1079,8 @@ components:
           type: string
           enum: [print, scan, copy, fax, unknown]
           description: unknown means the device has no vendor counter, so a print and a photocopy cannot be told apart. Label such activity; never count it as printing.
-        status: { type: string, enum: [queued, held, processing, sent, completed, failed, cancelled] }
+        status:
+          { type: string, enum: [queued, held, processing, sent, completed, failed, cancelled] }
         pages: { type: integer }
         copies: { type: integer }
         impressions:

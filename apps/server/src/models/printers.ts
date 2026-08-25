@@ -89,9 +89,17 @@ const PRINTER_SELECT = `
                      'colorant', ps.colorant,
                      'level', ps.level,
                      'maxLevel', ps.max_level,
-                     'percent', CASE WHEN ps.max_level > 0
-                                     THEN round((ps.level::numeric / ps.max_level) * 100, 1)
-                                     ELSE NULL END,
+                     'unit', ps.unit,
+                     -- Only where the device reports a percentage.
+                     --
+                     -- level / max_level is two different quantities on a
+                     -- Xerox toner: pages remaining over rated yield. It read
+                     -- 1% beside a machine displaying 10%. See migration 004.
+                     'percent', CASE
+                                  WHEN ps.unit = 'percent' THEN round(ps.level::numeric, 1)
+                                  WHEN ps.unit IS NULL AND ps.max_level = 100
+                                    THEN round(ps.level::numeric, 1)
+                                  ELSE NULL END,
                      -- Withheld until the history can support it: at least four
                      -- observations spanning a day, and a level that is actually
                      -- falling. A rise means the cartridge was replaced, and a
@@ -675,17 +683,26 @@ export async function replaceSupplies(
     colorant: string | null;
     level: number | null;
     maxLevel: number | null;
+    unit: string | null;
   }>,
 ): Promise<void> {
   for (const supply of supplies) {
     await db.query(
-      `INSERT INTO printer_supplies (printer_id, supply_index, name, colorant, level, max_level, observed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, now())
+      `INSERT INTO printer_supplies (printer_id, supply_index, name, colorant, level, max_level, unit, observed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, now())
        ON CONFLICT (printer_id, supply_index)
        DO UPDATE SET name = EXCLUDED.name, colorant = EXCLUDED.colorant,
                      level = EXCLUDED.level, max_level = EXCLUDED.max_level,
-                     observed_at = now()`,
-      [printerId, supply.index, supply.name, supply.colorant, supply.level, supply.maxLevel],
+                     unit = EXCLUDED.unit, observed_at = now()`,
+      [
+        printerId,
+        supply.index,
+        supply.name,
+        supply.colorant,
+        supply.level,
+        supply.maxLevel,
+        supply.unit,
+      ],
     );
 
     if (supply.level !== null && supply.maxLevel !== null && supply.maxLevel > 0) {

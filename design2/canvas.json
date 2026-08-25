@@ -1,11 +1,32 @@
 {
   "artboards": [
     { "file": "Login.dc.html", "x": 0, "y": 0, "w": 1440, "h": 960, "title": "Sign in — web" },
-    { "file": "SetPassword.dc.html", "x": 1530, "y": 0, "w": 390, "h": 844, "title": "Set your password — mobile" },
+    {
+      "file": "SetPassword.dc.html",
+      "x": 1530,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Set your password — mobile"
+    },
     { "file": "Main.dc.html", "x": 0, "y": 1220, "w": 1440, "h": 960, "title": "Home — web" },
-    { "file": "Mobile.dc.html", "x": 1530, "y": 1220, "w": 390, "h": 844, "title": "Home — mobile" },
+    {
+      "file": "Mobile.dc.html",
+      "x": 1530,
+      "y": 1220,
+      "w": 390,
+      "h": 844,
+      "title": "Home — mobile"
+    },
     { "file": "People.dc.html", "x": 0, "y": 2440, "w": 1440, "h": 960, "title": "People — web" },
-    { "file": "NewAccount.dc.html", "x": 1530, "y": 2440, "w": 1440, "h": 960, "title": "Account created — copy link" }
+    {
+      "file": "NewAccount.dc.html",
+      "x": 1530,
+      "y": 2440,
+      "w": 1440,
+      "h": 960,
+      "title": "Account created — copy link"
+    }
   ],
   "annotations": [
     {

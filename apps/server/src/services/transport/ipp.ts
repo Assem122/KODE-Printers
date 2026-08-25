@@ -1,9 +1,10 @@
 import ipp from 'ipp';
 import {
   AppError,
-  BLOCKING_STATE_REASONS,
   ippUriHost,
+  isBlockingReason,
   isPrivateIpv4,
+  stripReasonSuffix,
   type ColorMode,
   type MediaSize,
   type PrinterCapabilities,
@@ -339,9 +340,22 @@ export interface IppState {
 /**
  * Live device state — the thing RAW cannot report at all.
  *
- * IPP appends `-warning`, `-error` or `-report` to reasons; the suffix is
- * stripped so `toner-low-warning` and a bare `toner-low` map to the same
- * condition rather than appearing as two.
+ * IPP appends `-warning`, `-error` or `-report` to each reason, and that suffix
+ * is kept. It used to be stripped here, on the reasoning that `toner-low-warning`
+ * and a bare `toner-low` are the same condition. They are — but the suffix is
+ * not a spelling of the condition, it is the device's own verdict on whether
+ * the condition stops printing, and it is the only place that verdict exists.
+ *
+ * A WorkCentre 7835 with paper in tray 1 and empty trays 2–5 answers
+ * `printer-state: idle` alongside three `media-empty-warning` entries, one per
+ * empty tray. Stripped, those became `media-empty`, which is in
+ * `BLOCKING_STATE_REASONS`, so the device was marked offline, raised a critical
+ * alert, opened its circuit breaker and refused every job with "the paper tray
+ * is empty" — while standing idle with paper in it.
+ *
+ * Duplicates are collapsed because the count is per-subunit and the fleet board
+ * shows a condition, not a tally: nine reasons from a 7835 are four distinct
+ * ones. `plain.ts` strips the suffix for display; `isBlockingReason` reads it.
  */
 export async function readIppState(uri: string, timeoutMs = 5000): Promise<IppState> {
   const response = await execute(
@@ -360,19 +374,28 @@ export async function readIppState(uri: string, timeoutMs = 5000): Promise<IppSt
 
   const attrs = response['printer-attributes-tag'] ?? {};
   const raw = attrs['printer-state-reasons'];
-  const reasons = (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw])
-    .map(String)
-    .map((reason) => reason.replace(/-(?:warning|error|report)$/, ''))
-    .filter((reason) => reason !== 'none');
+  const reasons = [
+    ...new Set(
+      (Array.isArray(raw) ? raw : raw === undefined ? [] : [raw])
+        .map(String)
+        .filter((reason) => stripReasonSuffix(reason) !== 'none'),
+    ),
+  ];
 
   const printerState = attrs['printer-state'];
-  const blocked = reasons.some((reason) => BLOCKING_STATE_REASONS.has(reason));
+  const blocked = reasons.some(isBlockingReason);
 
   // `printer-state` 3 = idle, 4 = processing, 5 = stopped.
   const stopped = printerState === 5 || printerState === 'stopped';
 
+  /* `stopped` is authoritative, `blocked` is corroborating.
+   *
+   * A device that says it is stopped is stopped whatever its reasons say. The
+   * converse does not hold: an `-error` reason on a printer reporting `idle`
+   * is a subunit fault the engine is working around, so it degrades rather
+   * than going offline, and the dispatch gate still holds jobs on it. */
   return {
-    status: blocked || stopped ? 'offline' : reasons.length > 0 ? 'degraded' : 'online',
+    status: stopped || blocked ? 'offline' : reasons.length > 0 ? 'degraded' : 'online',
     stateReasons: reasons,
   };
 }

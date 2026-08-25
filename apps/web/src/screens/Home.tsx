@@ -11,6 +11,7 @@ import {
   jobStatus,
   pageCount,
   printerCondition,
+  supplyGaugePercent,
 } from '../lib/plain.js';
 import { useAuth } from '../lib/auth.js';
 import { Card, Note, PageHeader, Skeleton, StatusDot } from '../components/ui.js';
@@ -434,7 +435,13 @@ function ActivityRow({ job }: { job: Job }): ReactElement {
 
 function PrinterRow({ printer }: { printer: Printer }): ReactElement {
   const condition = printerCondition(printer);
-  const supply = printer.supplies.find((entry) => entry.percent !== null);
+  // The same ink-bearing supply `inkPhrase` describes, so the bar and the
+  // sentence above it are about the same cartridge rather than two different
+  // consumables that happened to be first in the list.
+  const supply = printer.supplies.find(
+    (entry) => entry.colorant !== null && supplyGaugePercent(entry) !== null,
+  );
+  const supplyPercent = supply ? supplyGaugePercent(supply) : null;
   const ink = inkPhrase(printer);
 
   const colour =
@@ -461,14 +468,13 @@ function PrinterRow({ printer }: { printer: Printer }): ReactElement {
               ? 'Not counted in the totals'
               : condition.text}
         </div>
-        {supply?.percent != null && condition.kind !== 'stopped' ? (
+        {supplyPercent !== null && condition.kind !== 'stopped' ? (
           <div className="meter" aria-hidden="true">
             <span
               className="meter__fill"
               style={{
-                width: `${Math.max(2, supply.percent)}%`,
-                background:
-                  supply.percent <= 10 ? 'var(--status-degraded)' : 'var(--status-online)',
+                width: `${Math.max(2, supplyPercent)}%`,
+                background: supplyPercent <= 10 ? 'var(--status-degraded)' : 'var(--status-online)',
               }}
             />
           </div>

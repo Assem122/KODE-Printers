@@ -1,4 +1,4 @@
-import type { Job, Printer } from '@kode/shared';
+import type { Job, Printer, PrinterSupply } from '@kode/shared';
 
 /**
  * Plain language, in one place.
@@ -49,17 +49,64 @@ const STOPPED: Readonly<Record<string, string>> = {
  * to ignore the warning that mattered.
  */
 const NIGGLES: Readonly<Record<string, string>> = {
-  'toner-low': 'Running low on ink',
-  'marker-supply-low': 'Running low on ink',
-  'developer-low': 'Running low on developer',
-  'media-low': 'Running low on paper',
-  'output-area-almost-full': 'The output tray is nearly full',
-  'opc-life-over': 'The drum is due for replacement',
+  'toner-low': 'Low on ink',
+  'marker-supply-low': 'Low on ink',
+  'developer-low': 'Low on developer',
+  'media-low': 'Low on paper',
+  'input-tray-empty': 'A tray is empty',
+  'output-area-almost-full': 'Output tray nearly full',
+  'opc-life-over': 'Drum due for replacement',
   'marker-supply-missing': 'A cartridge is missing',
-  'output-media-low': 'Running low on paper',
+  'output-media-low': 'Low on paper',
   'output-tray-missing': 'An output tray is missing',
+  'overdue-prevent-maint': 'A service is overdue',
+  'subunit-recoverable-failure': 'Reported a fault',
+  'subunit-unrecoverable-failure': 'Needs attention',
   paused: 'Paused at the device',
 };
+
+/**
+ * Which niggle to show when a device reports several.
+ *
+ * A WorkCentre reports five at once — a subunit fault, an empty tray, low
+ * toner, a recoverable fault and power saver. Taking the first the device
+ * happened to list put "Part of the device needs attention" on the card of a
+ * printer whose four cartridges were at 1%: the vaguest of the five, and the
+ * only one nobody can act on.
+ *
+ * So they are ranked by what the person reading the card can *do*. Order a
+ * cartridge, refill a tray, empty the output — then, only if none of those
+ * apply, the subunit faults that mean "call the engineer eventually".
+ */
+const NIGGLE_ORDER: readonly string[] = [
+  'marker-supply-missing',
+  'toner-low',
+  'marker-supply-low',
+  'developer-low',
+  'opc-life-over',
+  'media-low',
+  'input-tray-empty',
+  'output-area-almost-full',
+  'output-media-low',
+  'output-tray-missing',
+  'paused',
+  'overdue-prevent-maint',
+  'subunit-unrecoverable-failure',
+  'subunit-recoverable-failure',
+];
+
+/**
+ * The device's own verdict, which the keyword alone does not carry.
+ *
+ * `media-empty-warning` and `media-empty-error` are the same words and opposite
+ * situations: one tray of five is empty, versus the machine cannot feed paper
+ * at all. Reading the suffix here is what stops the fleet board announcing
+ * "Out of paper" over a printer that is quietly working — which is precisely
+ * what it did before, on every Xerox in the building.
+ */
+const SUFFIX = /-(?:report|warning|error)$/;
+const bare = (reason: string): string => reason.replace(SUFFIX, '');
+const isWarning = (reason: string): boolean => /-(?:warning|report)$/.test(reason);
 
 export type PrinterCondition =
   | { kind: 'stopped'; text: string }
@@ -75,13 +122,27 @@ export type PrinterCondition =
  */
 export function printerCondition(printer: Printer): PrinterCondition {
   for (const reason of printer.stateReasons) {
-    const stopped = STOPPED[reason];
+    if (isWarning(reason)) continue;
+    const stopped = STOPPED[bare(reason)];
     if (stopped) return { kind: 'stopped', text: stopped };
   }
 
+  /* Ranked, not first-come. See `NIGGLE_ORDER`. */
+  const present = new Set(printer.stateReasons.map(bare));
+  for (const keyword of NIGGLE_ORDER) {
+    const phrase = NIGGLES[keyword];
+    if (phrase !== undefined && present.has(keyword)) {
+      return { kind: 'attention', text: phrase };
+    }
+  }
+
+  /* A blocking keyword the device downgraded to a warning still deserves a
+   * mention — "a tray is empty" on a machine that is printing from another
+   * tray — but only after every ranked niggle, and never as `stopped`. */
   for (const reason of printer.stateReasons) {
-    const niggle = NIGGLES[reason];
-    if (niggle) return { kind: 'attention', text: niggle };
+    if (!isWarning(reason)) continue;
+    const stopped = STOPPED[bare(reason)];
+    if (stopped) return { kind: 'attention', text: stopped };
   }
 
   /* `offline` and `unknown` without a reason attached.
@@ -102,12 +163,88 @@ export function printerCondition(printer: Printer): PrinterCondition {
   return { kind: 'ready', text: 'Ready' };
 }
 
-/** Ink level and how long it is expected to last, when the device reports it. */
-export function inkPhrase(printer: Printer): string | null {
-  const supply = printer.supplies.find((entry) => entry.percent !== null);
-  if (supply?.percent == null) return null;
+/**
+ * A cartridge name a person would recognise.
+ *
+ * `prtMarkerSuppliesDescription` is an inventory field, not a label. A Xerox
+ * WorkCentre answers:
+ *
+ *   Black Toner, PN 006R01509;SN56195b80e00004d6
+ *
+ * and the fleet board was rendering all forty-three characters of it, so five
+ * cartridge rows read as five part numbers and the one thing that mattered —
+ * the word "Black" — was the part that fitted. The part and serial numbers
+ * belong in the printer's detail view for whoever is ordering a replacement;
+ * they are noise on a status card.
+ *
+ * The convention is `<name>, PN <part>;SN <serial>`, but it is a convention
+ * rather than a standard, so this trims only what it recognises and leaves
+ * anything unfamiliar intact — a name we do not understand is better shown
+ * whole than truncated by a guess.
+ */
+export function supplyName(description: string): string {
+  const trimmed = description.replace(/,?\s*(?:PN|P\/N)\s+[^;]*(?:;\s*SN\s*\S*)?\s*$/i, '').trim();
+  return trimmed === '' ? description : trimmed;
+}
 
-  const level = `${Math.round(supply.percent)}% ink left`;
+/**
+ * How much of a supply is left, in whatever the device actually measured.
+ *
+ * A percentage where the device reports one, a count where it reports a count,
+ * and nothing at all where it reports neither. The one thing this never does is
+ * turn a count into a percentage: a Xerox toner with 260 pages left of a
+ * 26,000-page cartridge is 1% by that arithmetic and 10% on the machine's own
+ * screen, and the person standing at the printer believes the machine.
+ *
+ * "260 pages" is also the more useful sentence. It is what the device's own
+ * supplies page prints, and it answers the question someone actually has.
+ */
+export function supplyLevelText(supply: PrinterSupply): string | null {
+  if (supply.percent !== null) return `${supply.percent}%`;
+  if (supply.level === null) return null;
+
+  const NOUNS: Readonly<Record<string, string>> = {
+    impressions: 'pages',
+    sheets: 'sheets',
+    items: 'items',
+    hours: 'hours',
+  };
+  const noun = supply.unit === null ? null : NOUNS[supply.unit];
+  return noun ? `${supply.level.toLocaleString()} ${noun}` : null;
+}
+
+/**
+ * How full the gauge should look, 0–100.
+ *
+ * The fraction of rated capacity, which is meaningful for every unit — it is
+ * the same comparison the forecast makes. It drives the *bar* only; the number
+ * beside it comes from `supplyLevelText`. A nearly-empty bar next to
+ * "260 pages" is two true statements, where a bar labelled "1%" was one true
+ * statement and one that argued with the printer.
+ */
+export function supplyGaugePercent(supply: PrinterSupply): number | null {
+  if (supply.percent !== null) return supply.percent;
+  if (supply.level === null || supply.maxLevel === null || supply.maxLevel <= 0) return null;
+  return Math.min(100, Math.max(0, (supply.level / supply.maxLevel) * 100));
+}
+
+/**
+ * Ink level and how long it is expected to last, when the device reports it.
+ *
+ * The supply has to be an *ink* one, which used to be assumed rather than
+ * checked: this took the first entry with a percentage, and once toners
+ * measured in pages stopped publishing one, the first match on a WorkCentre
+ * became a drum cartridge — so the home page would have announced "35% ink
+ * left" about a photoreceptor. A colorant is what distinguishes a cartridge
+ * that holds ink from a consumable that does not.
+ */
+export function inkPhrase(printer: Printer): string | null {
+  const supply = printer.supplies.find(
+    (entry) => entry.colorant !== null && supplyLevelText(entry) !== null,
+  );
+  if (!supply) return null;
+
+  const level = `${supplyLevelText(supply) ?? ''} of ink left`;
   return supply.estimatedDaysRemaining === null
     ? level
     : `${level} · about ${supply.estimatedDaysRemaining} day${supply.estimatedDaysRemaining === 1 ? '' : 's'}`;
