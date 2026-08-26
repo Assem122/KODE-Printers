@@ -122,21 +122,60 @@
   --font-brand: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  /* Everything a step larger than the first build. 12px body was the other
-     half of why it read as severe. */
-  --text-2xs: 0.6875rem;
-  --text-xs: 0.78125rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.90625rem;
-  --text-lg: 1.0625rem;
-  --text-xl: 1.375rem;
-  --text-2xl: 1.5625rem;
-  --text-3xl: 2rem;
-  --text-4xl: 2.75rem;
+  /**
+   * The scale, raised one step and anchored on 17px.
+   *
+   * It was anchored on 14.5px, which is a *desktop table* body size, and every
+   * other size followed it down: 11px labels on a phone, 13px inputs, 25px
+   * screen titles. Small dense type is the loudest signature of an admin
+   * template, and the whole interface inherited it from these nine lines.
+   *
+   * 17px is what iOS sets body text at, and it is not a stylistic preference —
+   * it is the size the platform's own legibility work landed on for a screen
+   * held at arm's length. The old `--text-lg` was already 17px, which is the
+   * clearest evidence the scale was simply shifted one step.
+   *
+   * Two hard floors now hold, and both fix real defects rather than taste:
+   *
+   *   · **Nothing below 13px.** `--text-2xs` was 11px and carried the supply
+   *     rows on the fleet board.
+   *   · **`--text-input` is 16px and is used by every field.** Mobile Safari
+   *     force-zooms the page whenever a focused input is smaller, and does not
+   *     zoom back — so every form left the app scrolled sideways on an iPhone.
+   */
+  --text-2xs: 0.8125rem; /* 13px — the floor */
+  --text-xs: 0.8125rem; /* 13px */
+  --text-sm: 0.9375rem; /* 15px */
+  --text-input: 1rem; /* 16px — never smaller, see above */
+  --text-base: 1.0625rem; /* 17px */
+  --text-lg: 1.1875rem; /* 19px */
+  --text-xl: 1.5rem; /* 24px */
+  --text-2xl: 1.875rem; /* 30px */
+  --text-3xl: 2.25rem; /* 36px */
+  --text-4xl: 3rem; /* 48px */
+
+  /* Large text needs tighter tracking or it reads as a blown-up small size.
+     This is most of the difference between a heading and a *title*. */
+  --tracking-title: -0.022em;
+  --tracking-tight: -0.015em;
 
   /* --------------------------------------------------------------- motion */
+  /**
+   * Two families, and the distinction matters more than the numbers.
+   *
+   * `--ease-out` is for things arriving: fast at the start, settling at the
+   * end, which is how an object that was already moving comes to rest.
+   * `--ease-spring` overshoots a little and is for things the user just did —
+   * a press, a toggle, a card appearing under their thumb. Overshoot on a
+   * *page* is nausea; overshoot on a *control* is life.
+   *
+   * Durations are short on purpose. Anything over ~300ms on an interface
+   * someone uses forty times a day stops being polish and starts being a wait.
+   */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-instant: 90ms;
   --duration-fast: 140ms;
   --duration-base: 220ms;
   --duration-slow: 420ms;

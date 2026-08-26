@@ -29,6 +29,9 @@ const Notifications = lazy(() =>
 );
 const Account = lazy(() => import('./screens/Account.js').then((m) => ({ default: m.Account })));
 const People = lazy(() => import('./screens/People.js').then((m) => ({ default: m.People })));
+const FleetNext = lazy(() =>
+  import('./screens/FleetNext.js').then((m) => ({ default: m.FleetNext })),
+);
 
 export function App(): ReactElement {
   const { status, user, mustChangePassword, isAdmin } = useAuth();
@@ -79,6 +82,17 @@ export function App(): ReactElement {
           <Route index element={<Home />} />
           <Route path="/print" element={<PrintComposer />} />
           <Route path="/fleet" element={<Fleet />} />
+          {/* The design proposal, side by side with the screen it proposes to
+              replace. Lazy so it costs nothing until someone opens it, and it
+              comes out with the decision rather than living here forever. */}
+          <Route
+            path="/fleet/next"
+            element={
+              <Lazy>
+                <FleetNext />
+              </Lazy>
+            }
+          />
           <Route
             path="/scans"
             element={

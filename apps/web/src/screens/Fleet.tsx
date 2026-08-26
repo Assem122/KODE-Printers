@@ -1,8 +1,7 @@
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import type { Paginated, Printer, PrinterSupply } from '@kode/shared';
 import { api, ApiError } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
@@ -161,29 +160,35 @@ export function Fleet(): ReactElement {
           {grouped.map(([zone, group]) => (
             <section key={zone}>
               <h2 className="section-title kode-slash">{zone}</h2>
-              <div className="grid-cards">
+              <div className="grid-cards kp-stagger">
                 {group.map((printer, index) => (
-                  <motion.div
-                    key={printer.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.3,
-                      // A short stagger so a grid of cards arrives as a wave
-                      // rather than a flash. Capped so a large fleet does not
-                      // take two seconds to appear.
-                      delay: Math.min(index * 0.035, 0.28),
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                  >
+                  <div key={printer.id} style={{ '--kp-index': index } as CSSProperties}>
                     <PrinterCard printer={printer} onShowQr={() => setQrPrinter(printer)} />
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </section>
           ))}
         </div>
       )}
+
+      {/* Temporary, for the design comparison. At the bottom rather than in the
+          header on purpose: a control up there would change the very layout
+          being judged. Comes out with the decision. */}
+      <Link
+        to="/fleet/next"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          minHeight: 44,
+          marginTop: 'var(--space-6)',
+          fontSize: 'var(--text-xs)',
+          fontWeight: 700,
+          color: 'var(--kode-blue)',
+        }}
+      >
+        Try the proposed design →
+      </Link>
 
       <QrModal printer={qrPrinter} onClose={() => setQrPrinter(null)} />
     </>

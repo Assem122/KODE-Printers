@@ -2,7 +2,6 @@ import type { ReactElement } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
   computeImpressions,
   computeSheets,
@@ -233,92 +232,84 @@ export function PrintComposer(): ReactElement {
               ) : null}
             </div>
             <div className="card__body">
-              <AnimatePresence mode="wait">
-                {file ? (
-                  <motion.div
-                    key="file"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="row"
+              {file ? (
+                <div
+                  key="file"
+                  className="row kp-rise"
+                  style={{
+                    gap: 'var(--space-4)',
+                    padding: 'var(--space-4)',
+                    background: 'var(--surface-inset)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-default)',
+                  }}
+                >
+                  <div
                     style={{
-                      gap: 'var(--space-4)',
-                      padding: 'var(--space-4)',
-                      background: 'var(--surface-inset)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      width: 44,
+                      height: 44,
                       borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-default)',
+                      background: 'var(--kode-blue)',
+                      color: '#fff',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      flexShrink: 0,
                     }}
                   >
-                    <div
-                      style={{
-                        display: 'grid',
-                        placeItems: 'center',
-                        width: 44,
-                        height: 44,
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--kode-blue)',
-                        color: '#fff',
-                        fontSize: 10,
-                        fontWeight: 800,
-                        letterSpacing: '0.04em',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {(file.name.split('.').pop() ?? '?').slice(0, 4).toUpperCase()}
+                    {(file.name.split('.').pop() ?? '?').slice(0, 4).toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="truncate" style={{ fontWeight: 600 }}>
+                      {file.name}
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="truncate" style={{ fontWeight: 600 }}>
-                        {file.name}
-                      </div>
-                      <div className="dim" style={{ fontSize: 'var(--text-xs)' }}>
-                        {formatBytes(file.size)}
-                        {estimatedPages > 0
-                          ? ` · about ${estimatedPages} page${estimatedPages === 1 ? '' : 's'}`
-                          : ''}
-                      </div>
+                    <div className="dim" style={{ fontSize: 'var(--text-xs)' }}>
+                      {formatBytes(file.size)}
+                      {estimatedPages > 0
+                        ? ` · about ${estimatedPages} page${estimatedPages === 1 ? '' : 's'}`
+                        : ''}
                     </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="drop"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className={`dropzone${dragging ? ' dropzone--active' : ''}`}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      setDragging(true);
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key="drop"
+                  className={`dropzone kp-fade${dragging ? ' dropzone--active' : ''}`}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDragging(true);
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={onDrop}
+                  onClick={() => inputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click();
+                  }}
+                >
+                  <span style={{ color: 'var(--kode-blue-bright)' }}>
+                    <UploadIcon />
+                  </span>
+                  <div style={{ fontWeight: 700 }}>Drop a file here, or tap to browse</div>
+                  <div className="dim" style={{ fontSize: 'var(--text-xs)', maxWidth: '38ch' }}>
+                    PDF, Word, Excel, PowerPoint, images and plain text. Office files are converted
+                    for you.
+                  </div>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    className="kode-visually-hidden"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.rtf,.csv,.txt,.png,.jpg,.jpeg"
+                    onChange={(event) => {
+                      const chosen = event.target.files?.[0];
+                      if (chosen) setFile(chosen);
                     }}
-                    onDragLeave={() => setDragging(false)}
-                    onDrop={onDrop}
-                    onClick={() => inputRef.current?.click()}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') inputRef.current?.click();
-                    }}
-                  >
-                    <span style={{ color: 'var(--kode-blue-bright)' }}>
-                      <UploadIcon />
-                    </span>
-                    <div style={{ fontWeight: 700 }}>Drop a file here, or tap to browse</div>
-                    <div className="dim" style={{ fontSize: 'var(--text-xs)', maxWidth: '38ch' }}>
-                      PDF, Word, Excel, PowerPoint, images and plain text. Office files are
-                      converted for you.
-                    </div>
-                    <input
-                      ref={inputRef}
-                      type="file"
-                      className="kode-visually-hidden"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.rtf,.csv,.txt,.png,.jpg,.jpeg"
-                      onChange={(event) => {
-                        const chosen = event.target.files?.[0];
-                        if (chosen) setFile(chosen);
-                      }}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  />
+                </div>
+              )}
 
               {templates && templates.length > 0 && !file ? (
                 <div style={{ marginTop: 'var(--space-5)' }}>

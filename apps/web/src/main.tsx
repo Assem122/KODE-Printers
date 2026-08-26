@@ -9,6 +9,7 @@ import { ToastProvider } from './components/ui.js';
 import { initialiseServiceWorker } from './lib/pwa.js';
 import './styles/theme.css';
 import './styles/components.css';
+import './styles/motion.css';
 
 /**
  * Query client defaults.

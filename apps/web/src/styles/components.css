@@ -264,10 +264,18 @@
     box-shadow var(--duration-base) var(--ease-out);
 }
 
-.card--interactive:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-default);
-  box-shadow: var(--inner-highlight), var(--shadow-md);
+/* Hover is a pointer idiom. On a touchscreen it "sticks" after a tap and
+   leaves a card lifted for no reason, so it is gated. */
+@media (hover: hover) {
+  .card--interactive:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-default);
+    box-shadow: var(--inner-highlight), var(--shadow-lg);
+  }
+}
+
+.card--interactive:active {
+  transform: scale(0.995);
 }
 
 .card__body {
@@ -377,7 +385,11 @@
 
 /* A tactile press. 1px is enough to register as a button and not as a jolt. */
 .btn:active:not(:disabled) {
-  transform: translateY(1px);
+  /* Scale, not a 1px nudge. Under a thumb the nudge is invisible — the finger
+     covers the button — while a scale changes the silhouette at the edges,
+     which is the part still visible. This is the only feedback that a tap
+     landed before the network answers, and without it people tap twice. */
+  transform: scale(0.97);
 }
 
 .btn:disabled {
@@ -448,10 +460,23 @@
   font-size: var(--text-base);
 }
 
+/**
+ * "Small" is about visual weight, not about being harder to hit.
+ *
+ * This was 36px, which is under the 44px floor every touch guideline agrees
+ * on — and it was the variant used for the two controls people tap while
+ * standing at a printer. The padding and type still shrink; the target does
+ * not. The extra height is claimed as transparent padding so the button looks
+ * the size it did before.
+ */
 .btn--sm {
-  height: 36px;
+  height: 44px;
   padding: 0 var(--space-3);
   font-size: var(--text-xs);
+}
+
+.btn--sm.btn--icon {
+  width: 44px;
 }
 
 .btn--icon {
@@ -590,20 +615,43 @@
   color: var(--status-offline);
 }
 
+/**
+ * Fields.
+ *
+ * `--text-input` is 16px and is not negotiable: mobile Safari zooms the page
+ * on focus below that and never zooms back, so sign-in, search and the whole
+ * print composer left an iPhone scrolled sideways for the rest of the session.
+ * It was the most-reported "this feels like a website" symptom and it was one
+ * declaration.
+ *
+ * 44px min-height rather than 42, so a field is the same touch target as the
+ * button next to it.
+ */
 .input,
 .select,
 .textarea {
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   padding: var(--space-3) var(--space-4);
-  font-size: var(--text-base);
+  font-size: var(--text-input);
   color: var(--text-primary);
   background: var(--surface-inset);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   transition:
     border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out);
+}
+
+/* A ring rather than a colour swap: the field keeps its shape and the focus
+   reads at a glance instead of asking you to compare two greys. */
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--kode-blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--kode-blue) 18%, transparent);
 }
 
 .input::placeholder,
@@ -693,12 +741,28 @@
   cursor: not-allowed;
 }
 
+/**
+ * The switch, and the thing that was wrong with it.
+ *
+ * The track is 22px tall and the label sat on the same line, so the whole
+ * control was a 26px target — the native input is `kode-visually-hidden`, which
+ * shrinks it to 1×1px, meaning the *label* is the only thing anyone can hit.
+ * Under a thumb that is a miss as often as a hit, and the one on the sign-in
+ * screen ("Keep me signed in") is the first control a new user ever touches.
+ *
+ * The min-height gives it a 44px target without moving a single pixel of the
+ * visible switch: the extra is transparent padding around the same artwork.
+ */
 .switch {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
+  min-height: 44px;
   cursor: pointer;
+  /* The thumb is positioned against this box, so it has to stop being
+     top-anchored once the box is taller than the track. */
+  padding: var(--space-2) 0;
 }
 
 .switch__track {
@@ -713,7 +777,10 @@
 
 .switch__thumb {
   position: absolute;
-  top: 3px;
+  /* Centred rather than measured from the top: the label box is now 44px and
+     a fixed 3px offset would leave the thumb floating above its track. */
+  top: 50%;
+  translate: 0 -50%;
   left: 3px;
   width: 16px;
   height: 16px;
@@ -730,7 +797,7 @@
 }
 
 .switch input:checked ~ .switch__thumb {
-  translate: 18px 0;
+  translate: 18px -50%;
   background: #fff;
 }
 
@@ -767,6 +834,10 @@
 
 .table-wrap {
   overflow-x: auto;
+  /* Without this, swiping a wide table sideways on a phone hands the gesture
+     to the browser at the end of the scroll and navigates back — losing the
+     page the person was reading. `contain` keeps the gesture in the table. */
+  overscroll-behavior-x: contain;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
 }

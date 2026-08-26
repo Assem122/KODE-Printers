@@ -112,7 +112,7 @@ export declare function Modal({ open, onClose, title, children, footer, }: {
     title: string;
     children: ReactNode;
     footer?: ReactNode;
-}): ReactElement;
+}): ReactElement | null;
 export interface Toast {
     id: number;
     tone: 'info' | 'success' | 'warning' | 'error';

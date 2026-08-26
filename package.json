@@ -22,6 +22,7 @@
     "typecheck:tests": "tsc -p tsconfig.eslint.json --noEmit --noPropertyAccessFromIndexSignature false",
     "lint": "eslint . --max-warnings 0",
     "check:api": "node scripts/check-openapi.mjs",
+    "icons": "node scripts/build-icons.mjs",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,css,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,css,json,md,yml,yaml}\"",

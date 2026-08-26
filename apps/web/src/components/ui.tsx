@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import {
   KODE_MARK_ASPECT,
   KODE_MARK_PATH,
@@ -17,6 +16,7 @@ import {
   type PrinterStatus,
   type Severity,
 } from '@kode/shared';
+import { usePresence } from '../lib/presence.js';
 
 /**
  * The primitive layer.
@@ -415,8 +415,10 @@ export function Modal({
   title: string;
   children: ReactNode;
   footer?: ReactNode;
-}): ReactElement {
+}): ReactElement | null {
   const ref = useRef<HTMLDivElement>(null);
+  // Kept mounted for the length of the leave animation. See `usePresence`.
+  const { mounted, state } = usePresence(open);
 
   useEffect(() => {
     if (!open) return;
@@ -439,43 +441,35 @@ export function Modal({
     };
   }, [open, onClose]);
 
+  if (!mounted) return null;
+
   return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div
-          className="overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) onClose();
-          }}
-        >
-          <motion.div
-            ref={ref}
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            tabIndex={-1}
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-          >
-            <div className="modal__header">
-              <h2 className="card__title">{title}</h2>
-              <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
-                <CloseIcon />
-              </Button>
-            </div>
-            <div className="modal__body">{children}</div>
-            {footer ? <div className="modal__footer">{footer}</div> : null}
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+    <div
+      className="overlay"
+      data-state={state}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={ref}
+        className="modal"
+        data-state={state}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+      >
+        <div className="modal__header">
+          <h2 className="card__title">{title}</h2>
+          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <CloseIcon />
+          </Button>
+        </div>
+        <div className="modal__body">{children}</div>
+        {footer ? <div className="modal__footer">{footer}</div> : null}
+      </div>
+    </div>
   );
 }
 
@@ -515,23 +509,14 @@ export function ToastProvider({ children }: { children: ReactNode }): ReactEleme
     <ToastContext.Provider value={value}>
       {children}
       <div className="toast-stack" role="status" aria-live="polite">
-        <AnimatePresence initial={false}>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              className={`toast toast--${toast.tone}`}
-              initial={{ opacity: 0, x: 40, scale: 0.96 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 40, scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div className="toast__title">{toast.title}</div>
-                {toast.body ? <div className="toast__body">{toast.body}</div> : null}
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {toasts.map((toast) => (
+          <div key={toast.id} className={`toast toast--${toast.tone}`} data-state="open">
+            <div style={{ minWidth: 0 }}>
+              <div className="toast__title">{toast.title}</div>
+              {toast.body ? <div className="toast__body">{toast.body}</div> : null}
+            </div>
+          </div>
+        ))}
       </div>
     </ToastContext.Provider>
   );

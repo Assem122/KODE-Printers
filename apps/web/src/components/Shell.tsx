@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
@@ -59,6 +59,7 @@ const DESTINATIONS: readonly Destination[] = [
 
 export function Shell(): ReactElement {
   const { isAdmin } = useAuth();
+  const { pathname } = useLocation();
   const visible = DESTINATIONS.filter((entry) => !entry.adminOnly || isAdmin);
 
   const { data: unread } = useQuery({
@@ -109,8 +110,14 @@ export function Shell(): ReactElement {
         </NavLink>
       </nav>
 
+      {/* Keyed on the path so React remounts the wrapper on every navigation
+          and the entrance animation actually replays. Without the key the node
+          persists and the animation runs exactly once, on first load — which
+          is the usual reason a route transition "does not work". */}
       <main className="shell__main">
-        <Outlet />
+        <div key={pathname} className="kp-route">
+          <Outlet />
+        </div>
       </main>
 
       <nav className="bottom-nav" aria-label="Main">
