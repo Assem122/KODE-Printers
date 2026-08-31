@@ -262,6 +262,8 @@ export async function findPrinter(db: Db, id: number): Promise<Printer | null> {
 export interface PrinterWithSecrets {
   id: number;
   name: string;
+  vendor: string | null;
+  model: string | null;
   ipAddress: string;
   hostname: string | null;
   zoneId: number | null;
@@ -294,6 +296,8 @@ export interface PrinterWithSecrets {
 interface SecretRow {
   id: number;
   name: string;
+  vendor: string | null;
+  model: string | null; 
   ip_address: string;
   hostname: string | null;
   zone_id: number | null;
@@ -324,7 +328,7 @@ interface SecretRow {
 }
 
 const SECRET_SELECT = `
-  SELECT id, name, host(ip_address) AS ip_address, hostname, zone_id, collector_id,
+  SELECT id, name, vendor, model, host(ip_address) AS ip_address, hostname, zone_id, collector_id,
          transport, ipp_uri, capabilities, snmp_version, snmp_community, snmp_username,
          snmp_auth_key, snmp_priv_key, snmp_page_oid, snmp_print_oid, snmp_copy_oid,
          serial_number, last_page_count, last_print_count, last_copy_count,
@@ -336,6 +340,8 @@ const SECRET_SELECT = `
 const toSecret = (row: SecretRow): PrinterWithSecrets => ({
   id: row.id,
   name: row.name,
+  vendor: row.vendor,
+  model: row.model,
   ipAddress: row.ip_address,
   hostname: row.hostname,
   zoneId: row.zone_id,

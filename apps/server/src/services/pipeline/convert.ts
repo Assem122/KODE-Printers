@@ -149,6 +149,52 @@ export async function toGrayscale(input: Buffer, jobId: number): Promise<Buffer>
   });
 }
 
+
+/**
+ * Whether the device can be trusted to take a PDF directly and RIP it
+ * correctly, versus needing PostScript from this pipeline instead.
+ *
+ * `document-format-supported` is not reliable here. EFI Fiery controllers
+ * (the RIP fitted to most Xerox WorkCentre/AltaLink devices, including the
+ * WorkCentre 7835) advertise `application/pdf` support — they do accept PDF
+ * over IPP — but they RIP it by converting it to PostScript internally
+ * first, through a filter Fiery's own diagnostics literally call "PDF to
+ * PS". That internal filter is considerably stricter about PDF structure
+ * than Ghostscript is, and a PDF this pipeline has rewritten (grayscale
+ * conversion, watermark) is exactly the kind of document that trips it —
+ * producing a printed error page reading "PDF to PS: bad parameter" instead
+ * of the job.
+ *
+ * Rather than rely on the advertised format list, known-Fiery devices are
+ * sent PostScript produced by this pipeline's own, tested Ghostscript
+ * conversion, which sidesteps the device's internal PDF interpreter
+ * entirely. `vendor`/`model` are populated from `printer-make-and-model`
+ * during the IPP probe (see `select.ts`).
+ */
+
+
+
+export function printerAcceptsPdf(printer: {
+  vendor: string | null;
+  model: string | null;
+  capabilities: { formats: readonly string[] };
+}): boolean {
+  const identity = `${printer.vendor ?? ''} ${printer.model ?? ''}`.toLowerCase();
+  const isKnownFiery =
+    identity.includes('fiery') ||
+    identity.includes('xerox') ||
+    identity.includes('workcentre') ||
+    identity.includes('altalink');
+  if (isKnownFiery) return false;
+
+  return (
+    printer.capabilities.formats.length === 0 ||
+    printer.capabilities.formats.includes('application/pdf')
+  );
+}
+
+
+
 /**
  * PDF → PostScript, for devices that do not accept `application/pdf`.
  *
@@ -157,7 +203,11 @@ export async function toGrayscale(input: Buffer, jobId: number): Promise<Buffer>
  * capabilities say PDF is supported, dropping a Ghostscript invocation from the
  * hot path.
  */
-export async function pdfToPostScript(input: Buffer, jobId: number): Promise<Buffer> {
+export async function pdfToPostScript(
+  input: Buffer,
+  jobId: number,
+  options: { grayscale?: boolean } = {},
+): Promise<Buffer> {
   return withTempDir(`gs-ps-${jobId}`, async (dir) => {
     const inputPath = join(dir, 'input.pdf');
     const outputPath = join(dir, 'output.ps');
@@ -167,6 +217,9 @@ export async function pdfToPostScript(input: Buffer, jobId: number): Promise<Buf
       command: config.convert.ghostscriptPath,
       args: [
         '-sDEVICE=ps2write',
+        ...(options.grayscale
+          ? ['-dProcessColorModel=/DeviceGray', '-sColorConversionStrategy=Gray', '-dOverrideICC']
+          : []),
         '-dNOPAUSE',
         '-dBATCH',
         '-dSAFER',
