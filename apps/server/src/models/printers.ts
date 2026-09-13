@@ -28,6 +28,7 @@ const EMPTY_CAPABILITIES: PrinterCapabilities = {
   colorModes: [],
   maxCopies: null,
   media: [],
+  orientations: [],
   probedVia: 'none',
   counters: { life: false, print: false, copy: false },
 };

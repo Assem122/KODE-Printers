@@ -57,13 +57,17 @@ export interface PrinterCapabilities {
   colorModes: ColorMode[];
   maxCopies: number | null;
   media: string[];
+  /**
+   * `orientation-requested-supported` values (IPP enum: 3=portrait,
+   * 4=landscape, 5=reverse-landscape, 6=reverse-portrait). Empty means the
+   * device did not advertise the attribute at all — many PDF-only workflows
+   * don't, since orientation is already baked into the document.
+   */
+  orientations: number[];
   probedVia: 'ipp' | 'snmp' | 'none';
   counters: {
-    /** prtMarkerLifeCount — every impression, including photocopies. */
     life: boolean;
-    /** Vendor print-only counter. Absence is why job_type can be `unknown`. */
     print: boolean;
-    /** Vendor copy-only counter. */
     copy: boolean;
   };
   /** Set when an engineer confirmed these against the physical device. */

@@ -202,14 +202,26 @@ async function execute(
     );
   }
 
-  const status = parsed.statusCode;
+    const status = parsed.statusCode;
   if (status && !status.startsWith('successful')) {
-    throw new IppError(classify(null, status), `IPP ${operation} returned ${status}`, status);
+    const unsupported = parsed['unsupported-attributes-tag'];
+const unsupportedEntries = unsupported ? Object.entries(unsupported) : [];
+const detail =
+  unsupportedEntries.length > 0
+    ? ` (unsupported: ${unsupportedEntries
+        .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+        .join(', ')})`
+    : '';
+    log.warn(
+      { operation, status, unsupportedAttributes: unsupported ?? null },
+      'IPP request rejected by device',
+    );
+
+    throw new IppError(classify(null, status), `IPP ${operation} returned ${status}${detail}`, status);
   }
 
   return parsed;
 }
-
 /**
  * The SSRF control, re-applied at the socket.
  *
@@ -276,6 +288,7 @@ export async function probeIpp(
           'copies-supported',
           'media-supported',
           'color-supported',
+          'orientation-requested-supported',
         ],
       },
     },
@@ -302,6 +315,10 @@ export async function probeIpp(
     )
     .filter((value): value is ColorMode => value !== null);
 
+    const orientations = asArray(attrs['orientation-requested-supported'])
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value));
+
   const copiesSupported = attrs['copies-supported'];
   const maxCopies =
     typeof copiesSupported === 'number'
@@ -312,18 +329,18 @@ export async function probeIpp(
 
   const makeAndModel = attrs['printer-make-and-model'];
 
-  return {
+   return {
     ipp: {
       supported: true,
       versions: asArray(attrs['ipp-versions-supported']),
       uri,
     },
     formats: asArray(attrs['document-format-supported']),
-    // Every IPP device supports one-sided even when it does not advertise it.
     sides: sidesSupported.length > 0 ? sidesSupported : ['one-sided'],
     colorModes: colorModes.length > 0 ? [...new Set(colorModes)] : ['grayscale'],
     maxCopies,
     media: asArray(attrs['media-supported']).slice(0, 40),
+    orientations,
     probedVia: 'ipp',
     counters: { life: false, print: false, copy: false },
     makeAndModel: typeof makeAndModel === 'string' ? makeAndModel : null,
@@ -413,7 +430,6 @@ export interface IppSendOptions {
   colorMode: ColorMode;
   media: MediaSize;
   orientation: 'portrait' | 'landscape';
-  pageRanges: ReadonlyArray<readonly [number, number]>;
   timeoutMs?: number;
 }
 
@@ -439,11 +455,17 @@ export async function sendIpp(options: IppSendOptions): Promise<IppSendResult> {
     'orientation-requested': options.orientation === 'landscape' ? 4 : 3,
   };
 
-  if (options.pageRanges.length > 0) {
-    // `page-ranges` is a rangeOfInteger, which the library encodes from a flat
-    // [lower, upper, lower, upper, …] array.
-    jobAttributes['page-ranges'] = options.pageRanges.flatMap(([from, to]) => [from, to]);
-  }
+  // `page-ranges` is deliberately NOT sent here. `prepare.ts#selectPages` has
+  // already cut `options.document` down to exactly the wanted pages before it
+  // reaches this function, so `options.pageRanges` describes page numbers in
+  // the *original* upload, not this (already-trimmed) buffer. Re-applying it
+  // as an IPP attribute asks the device to select page 3 out of a document
+  // that is now one page long — which a device either rejects outright
+  // (`client-error-attributes-or-values-not-supported`) or silently
+  // misinterprets. The impression count also has to come from what we
+  // physically sent, not from a range the device applied itself (see the
+  // comment on `selectPages`), which is the same reason it must not be
+  // re-declared here.
 
   const response = await execute(
     options.uri,
@@ -539,3 +561,4 @@ export function toAppError(error: unknown, printerId: number): AppError {
     cause: error,
   });
 }
+
